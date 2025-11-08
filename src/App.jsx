@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import './App.css'
-import neighbourlyLogo from './neighbourly_logo.PNG?url'
+import burrowlyLogo from './neighbourly_logo.PNG?url'
 import binooLogo from './binoo.PNG?url'
 
 function App() {
@@ -136,7 +136,7 @@ function App() {
     setTimeout(() => {
       const binooResponse = {
         id: chatMessages.length + 2,
-        text: "Thanks for reaching out! I'm here to help connect you with neighbors or answer questions about Neighbourly. What would you like to know?",
+        text: "Thanks for reaching out! I'm here to help connect you with neighbors or answer questions about Burrowly. What would you like to know?",
         sender: "binoo",
         timestamp: new Date()
       }
@@ -203,9 +203,9 @@ function App() {
           <div className="nav-container">
             <div className="logo">
               <div className="logo-icon">
-                <img src={neighbourlyLogo} alt="Neighbourly Logo" />
+                <img src={burrowlyLogo} alt="Burrowly Logo" />
               </div>
-              <span className="logo-text">NEIGHBOURLY</span>
+              <span className="logo-text">BURROWLY</span>
             </div>
 
             <nav className="nav-links">
@@ -430,7 +430,7 @@ function App() {
 
             <div className="modal-header">
               <div className="modal-header-glow"></div>
-              <h2 className="modal-title">About Neighbourly</h2>
+              <h2 className="modal-title">About Burrowly</h2>
               <p className="modal-subtitle">AI-Powered Neighborhood Resilience Network</p>
               <div className="modal-badge">
                 <span className="badge-dot"></span>
@@ -449,11 +449,11 @@ function App() {
                   <h3 className="section-title">Our Mission</h3>
                 </div>
                 <p className="section-text">
-                  Neighbourly brings neighbors together when it matters most. When someone needs help, 
+                  Burrowly brings neighbors together when it matters most. When someone needs help, 
                   we connect them with people nearby who can lend a hand. Whether it's shoveling a 
                   sidewalk, checking on an elderly neighbor, or responding during an emergency, we're 
                   building communities where everyone looks out for each other. No one should have to 
-                  face challenges alone, and that's what Neighbourly is all about.
+                  face challenges alone, and that's what Burrowly is all about.
                 </p>
               </div>
 
@@ -624,7 +624,7 @@ function App() {
                   className="modal-cta-button" 
                   onClick={handleGetStarted}
                 >
-                  <span>Join Neighbourly Now</span>
+                  <span>Join Burrowly Now</span>
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                     <line x1="5" y1="12" x2="19" y2="12"/>
                     <polyline points="12 5 19 12 12 19"/>
@@ -649,7 +649,7 @@ function App() {
 
             <div className="signup-header">
               <div className="signup-header-glow"></div>
-              <h2 className="signup-title">Join Neighbourly</h2>
+              <h2 className="signup-title">Join Burrowly</h2>
               <p className="signup-subtitle">Start building stronger communities today</p>
             </div>
 
@@ -742,12 +742,12 @@ function App() {
 
       <section id="about" className="content-section">
         <div className="section-container">
-          <h2 className="section-heading">About Neighbourly</h2>
+          <h2 className="section-heading">About Burrowly</h2>
           <p className="section-text">
             More than half of us live in cities now, and that number keeps growing. But our cities are 
             struggling with transportation, housing costs, pollution, and infrastructure that can't keep up. 
             When emergencies happen or someone needs help, official services can't always get there in time. 
-            That's where Neighbourly comes in. We connect neighbors who need help with neighbors who can 
+            That's where Burrowly comes in. We connect neighbors who need help with neighbors who can 
             help, using smart technology to make sure no one gets left behind.
           </p>
         </div>
@@ -785,7 +785,7 @@ function App() {
         <div className="section-container">
           <h2 className="section-heading">Get In Touch</h2>
           <p className="section-text">
-            Ready to build a stronger community? Join Neighbourly today and be part of creating 
+            Ready to build a stronger community? Join Burrowly today and be part of creating 
             safer, more inclusive, and resilient neighborhoods.
           </p>
           <button className="cta-button" onClick={handleGetStarted}>Get Started</button>
@@ -794,7 +794,7 @@ function App() {
 
       <footer className="footer">
         <div className="footer-container">
-          <p>&copy; 2025 Neighbourly. All rights reserved.</p>
+          <p>&copy; 2025 Burrowly. All rights reserved.</p>
         </div>
       </footer>
 

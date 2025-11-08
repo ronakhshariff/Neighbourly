@@ -1,4 +1,4 @@
-# Neighbourly
+# Burrowly
 
 AI-Powered Neighborhood Resilience Network - Connecting people in need with nearby helpers to build safer, more inclusive, resilient, and sustainable communities.
 
@@ -34,7 +34,7 @@ npm run dev
 ## Project Structure
 
 ```
-Neighbourly/
+Burrowly/
 ├── src/
 │   ├── App.jsx          # Main application component
 │   ├── App.css          # Application styles
@@ -61,7 +61,7 @@ The built files will be in the `dist` directory.
 
 ## Accessibility
 
-Neighbourly is designed with accessibility in mind:
+Burrowly is designed with accessibility in mind:
 
 - High contrast mode toggle
 - Adjustable font sizes
