@@ -9,6 +9,7 @@ function App() {
   const [showLearnMore, setShowLearnMore] = useState(false)
   const [showSignup, setShowSignup] = useState(false)
   const [showChat, setShowChat] = useState(false)
+  const [showA11ySettings, setShowA11ySettings] = useState(false)
   const [chatMessages, setChatMessages] = useState([
     {
       id: 1,
@@ -18,6 +19,52 @@ function App() {
     }
   ])
   const [inputMessage, setInputMessage] = useState("")
+  
+  // Accessibility preferences
+  const [a11yPrefs, setA11yPrefs] = useState(() => {
+    const saved = localStorage.getItem('a11yPrefs')
+    return saved ? JSON.parse(saved) : {
+      fontSize: 1,
+      highContrast: false,
+      colorBlind: 'none',
+      adhdMode: false,
+      sensoryFriendly: false,
+      ttsEnabled: false,
+      highlightText: false,
+      reduceMotion: false,
+      zoom: 1
+    }
+  })
+
+  useEffect(() => {
+    localStorage.setItem('a11yPrefs', JSON.stringify(a11yPrefs))
+    
+    // Apply CSS variables and classes
+    const root = document.documentElement
+    root.style.setProperty('--font-size-multiplier', a11yPrefs.fontSize)
+    root.style.setProperty('--zoom-level', a11yPrefs.zoom)
+    root.classList.toggle('high-contrast', a11yPrefs.highContrast)
+    root.classList.toggle('color-blind-protanopia', a11yPrefs.colorBlind === 'protanopia')
+    root.classList.toggle('color-blind-deuteranopia', a11yPrefs.colorBlind === 'deuteranopia')
+    root.classList.toggle('color-blind-tritanopia', a11yPrefs.colorBlind === 'tritanopia')
+    root.classList.toggle('adhd-mode', a11yPrefs.adhdMode)
+    root.classList.toggle('sensory-friendly', a11yPrefs.sensoryFriendly)
+    root.classList.toggle('highlight-text', a11yPrefs.highlightText)
+    root.classList.toggle('reduce-motion', a11yPrefs.reduceMotion)
+  }, [a11yPrefs])
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (showA11ySettings && !e.target.closest('.nav-actions') && !e.target.closest('.a11y-dropdown')) {
+        setShowA11ySettings(false)
+      }
+    }
+    if (showA11ySettings) {
+      document.addEventListener('click', handleClickOutside)
+      return () => document.removeEventListener('click', handleClickOutside)
+    }
+  }, [showA11ySettings])
 
   useEffect(() => {
     setIsVisible(true)
@@ -93,7 +140,15 @@ function App() {
         sender: "binoo",
         timestamp: new Date()
       }
-      setChatMessages(prev => [...prev, binooResponse])
+      setChatMessages(prev => {
+        const next = [...prev, binooResponse]
+        if (a11yPrefs.ttsEnabled && window.speechSynthesis) {
+          const utterance = new SpeechSynthesisUtterance(binooResponse.text)
+          utterance.lang = 'en'
+          window.speechSynthesis.speak(utterance)
+        }
+        return next
+      })
     }, 1000)
   }
 
@@ -115,6 +170,20 @@ function App() {
 
   return (
     <div className="app">
+      {/* SVG Filters for Color Blindness */}
+      <svg width="0" height="0" style={{ position: 'absolute' }}>
+        <defs>
+          <filter id="protanopia">
+            <feColorMatrix type="matrix" values="0.567 0.433 0 0 0 0.558 0.442 0 0 0 0 0.242 0.758 0 0 0 0 0 1 0"/>
+          </filter>
+          <filter id="deuteranopia">
+            <feColorMatrix type="matrix" values="0.625 0.375 0 0 0 0.7 0.3 0 0 0 0 0.3 0.7 0 0 0 0 0 1 0"/>
+          </filter>
+          <filter id="tritanopia">
+            <feColorMatrix type="matrix" values="0.95 0.05 0 0 0 0 0.433 0.567 0 0 0 0.475 0.525 0 0 0 0 0 1 0"/>
+          </filter>
+        </defs>
+      </svg>
       <section className="hero-section">
         <div 
           className="hero-background"
@@ -161,9 +230,171 @@ function App() {
               </button>
             </div>
 
-            <div className="nav-actions">
+            <div className="nav-actions" style={{ position: 'relative' }}>
               <button className="login-button">Log In</button>
               <button className="join-button">Join Now</button>
+              <button 
+                className="settings-button" 
+                onClick={() => setShowA11ySettings(!showA11ySettings)}
+                aria-label="Accessibility settings"
+                aria-expanded={showA11ySettings}
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <circle cx="12" cy="12" r="3"/>
+                  <path d="M12 1v6m0 6v6M5.64 5.64l4.24 4.24m4.24 4.24l4.24 4.24M1 12h6m6 0h6M5.64 18.36l4.24-4.24m4.24-4.24l4.24-4.24"/>
+                </svg>
+              </button>
+              
+              {showA11ySettings && (
+                <div className="a11y-dropdown" onClick={(e) => e.stopPropagation()}>
+                  <div className="a11y-dropdown-header">
+                    <h3>Accessibility Settings</h3>
+                    <button 
+                      className="a11y-close-btn" 
+                      onClick={() => setShowA11ySettings(false)}
+                      aria-label="Close settings"
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                        <line x1="18" y1="6" x2="6" y2="18"/>
+                        <line x1="6" y1="6" x2="18" y2="18"/>
+                      </svg>
+                    </button>
+                  </div>
+                  
+                  <div className="a11y-dropdown-content">
+                    <section className="a11y-section">
+                      <h4>Text & Size</h4>
+                      <div className="a11y-option">
+                        <label>
+                          <span>Font Size</span>
+                          <div className="a11y-control-group">
+                            <button 
+                              onClick={() => setA11yPrefs(prev => ({...prev, fontSize: Math.max(0.8, prev.fontSize - 0.1)}))}
+                              className="a11y-control-btn"
+                            >
+                              A−
+                            </button>
+                            <span className="a11y-value">{a11yPrefs.fontSize.toFixed(1)}x</span>
+                            <button 
+                              onClick={() => setA11yPrefs(prev => ({...prev, fontSize: Math.min(2, prev.fontSize + 0.1)}))}
+                              className="a11y-control-btn"
+                            >
+                              A+
+                            </button>
+                          </div>
+                        </label>
+                      </div>
+                      <div className="a11y-option">
+                        <label>
+                          <span>Zoom Level</span>
+                          <div className="a11y-control-group">
+                            <button 
+                              onClick={() => setA11yPrefs(prev => ({...prev, zoom: Math.max(0.5, prev.zoom - 0.1)}))}
+                              className="a11y-control-btn"
+                            >
+                              −
+                            </button>
+                            <span className="a11y-value">{Math.round(a11yPrefs.zoom * 100)}%</span>
+                            <button 
+                              onClick={() => setA11yPrefs(prev => ({...prev, zoom: Math.min(2, prev.zoom + 0.1)}))}
+                              className="a11y-control-btn"
+                            >
+                              +
+                            </button>
+                          </div>
+                        </label>
+                      </div>
+                    </section>
+
+                    <section className="a11y-section">
+                      <h4>Visual</h4>
+                      <div className="a11y-option">
+                        <label className="a11y-toggle">
+                          <input 
+                            type="checkbox" 
+                            checked={a11yPrefs.highContrast}
+                            onChange={e => setA11yPrefs(prev => ({...prev, highContrast: e.target.checked}))}
+                          />
+                          <span>High Contrast Mode</span>
+                        </label>
+                      </div>
+                      <div className="a11y-option">
+                        <label className="a11y-toggle">
+                          <input 
+                            type="checkbox" 
+                            checked={a11yPrefs.highlightText}
+                            onChange={e => setA11yPrefs(prev => ({...prev, highlightText: e.target.checked}))}
+                          />
+                          <span>Text Highlighting</span>
+                        </label>
+                      </div>
+                      <div className="a11y-option">
+                        <label>
+                          <span>Color Blindness</span>
+                          <select 
+                            value={a11yPrefs.colorBlind}
+                            onChange={e => setA11yPrefs(prev => ({...prev, colorBlind: e.target.value}))}
+                            className="a11y-select"
+                          >
+                            <option value="none">None</option>
+                            <option value="protanopia">Protanopia (Red-Blind)</option>
+                            <option value="deuteranopia">Deuteranopia (Green-Blind)</option>
+                            <option value="tritanopia">Tritanopia (Blue-Blind)</option>
+                          </select>
+                        </label>
+                      </div>
+                    </section>
+
+                    <section className="a11y-section">
+                      <h4>Focus & Attention</h4>
+                      <div className="a11y-option">
+                        <label className="a11y-toggle">
+                          <input 
+                            type="checkbox" 
+                            checked={a11yPrefs.adhdMode}
+                            onChange={e => setA11yPrefs(prev => ({...prev, adhdMode: e.target.checked}))}
+                          />
+                          <span>ADHD Focus Mode</span>
+                        </label>
+                      </div>
+                      <div className="a11y-option">
+                        <label className="a11y-toggle">
+                          <input 
+                            type="checkbox" 
+                            checked={a11yPrefs.sensoryFriendly}
+                            onChange={e => setA11yPrefs(prev => ({...prev, sensoryFriendly: e.target.checked}))}
+                          />
+                          <span>Sensory-Friendly Mode</span>
+                        </label>
+                      </div>
+                    </section>
+
+                    <section className="a11y-section">
+                      <h4>Motion & Audio</h4>
+                      <div className="a11y-option">
+                        <label className="a11y-toggle">
+                          <input 
+                            type="checkbox" 
+                            checked={a11yPrefs.reduceMotion}
+                            onChange={e => setA11yPrefs(prev => ({...prev, reduceMotion: e.target.checked}))}
+                          />
+                          <span>Reduce Motion</span>
+                        </label>
+                      </div>
+                      <div className="a11y-option">
+                        <label className="a11y-toggle">
+                          <input 
+                            type="checkbox" 
+                            checked={a11yPrefs.ttsEnabled}
+                            onChange={e => setA11yPrefs(prev => ({...prev, ttsEnabled: e.target.checked}))}
+                          />
+                          <span>Text-to-Speech</span>
+                        </label>
+                      </div>
+                    </section>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </header>
