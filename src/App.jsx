@@ -1,12 +1,23 @@
 import React, { useState, useEffect } from 'react'
 import './App.css'
 import neighbourlyLogo from './neighbourly_logo.PNG?url'
+import binooLogo from './binoo.PNG?url'
 
 function App() {
   const [scrollY, setScrollY] = useState(0)
   const [isVisible, setIsVisible] = useState(false)
   const [showLearnMore, setShowLearnMore] = useState(false)
   const [showSignup, setShowSignup] = useState(false)
+  const [showChat, setShowChat] = useState(false)
+  const [chatMessages, setChatMessages] = useState([
+    {
+      id: 1,
+      text: "Hi! I'm Binoo the Beacon, your beacon of hope. How can I help you today?",
+      sender: "binoo",
+      timestamp: new Date()
+    }
+  ])
+  const [inputMessage, setInputMessage] = useState("")
 
   useEffect(() => {
     setIsVisible(true)
@@ -50,6 +61,40 @@ function App() {
       setShowSignup(true)
       document.body.style.overflow = 'hidden'
     }
+  }
+
+  const handleChatToggle = () => {
+    setShowChat(!showChat)
+    if (!showChat) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = 'unset'
+    }
+  }
+
+  const handleSendMessage = (e) => {
+    e.preventDefault()
+    if (!inputMessage.trim()) return
+
+    const newMessage = {
+      id: chatMessages.length + 1,
+      text: inputMessage,
+      sender: "user",
+      timestamp: new Date()
+    }
+
+    setChatMessages([...chatMessages, newMessage])
+    setInputMessage("")
+
+    setTimeout(() => {
+      const binooResponse = {
+        id: chatMessages.length + 2,
+        text: "Thanks for reaching out! I'm here to help connect you with neighbors or answer questions about Neighbourly. What would you like to know?",
+        sender: "binoo",
+        timestamp: new Date()
+      }
+      setChatMessages(prev => [...prev, binooResponse])
+    }, 1000)
   }
 
   return (
@@ -505,6 +550,71 @@ function App() {
           <p>&copy; 2025 Neighbourly. All rights reserved.</p>
         </div>
       </footer>
+
+      <button className="chat-button" onClick={handleChatToggle} aria-label="Open chat">
+        <div className="chat-button-icon">
+          <img src={binooLogo} alt="Binoo" />
+        </div>
+        <span className="chat-button-text">Get Help</span>
+      </button>
+
+      {showChat && (
+        <div className="chat-overlay">
+          <div className="chat-container">
+            <div className="chat-header">
+              <div className="chat-header-info">
+                <div className="binoo-avatar">
+                  <img src={binooLogo} alt="Binoo the Beacon" />
+                </div>
+                <div>
+                  <h3 className="chat-title">Binoo the Beacon</h3>
+                  <p className="chat-subtitle">Your beacon of hope</p>
+                </div>
+              </div>
+              <button className="chat-close" onClick={handleChatToggle} aria-label="Close chat">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <line x1="18" y1="6" x2="6" y2="18"/>
+                  <line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+              </button>
+            </div>
+
+            <div className="chat-messages">
+              {chatMessages.map((message) => (
+                <div key={message.id} className={`chat-message ${message.sender === 'user' ? 'user-message' : 'binoo-message'}`}>
+                  {message.sender === 'binoo' && (
+                    <div className="message-avatar">
+                      <img src={binooLogo} alt="Binoo" />
+                    </div>
+                  )}
+                  <div className="message-content">
+                    <p>{message.text}</p>
+                    <span className="message-time">
+                      {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <form className="chat-input-container" onSubmit={handleSendMessage}>
+              <input
+                type="text"
+                className="chat-input"
+                placeholder="Type your message..."
+                value={inputMessage}
+                onChange={(e) => setInputMessage(e.target.value)}
+              />
+              <button type="submit" className="chat-send-button" aria-label="Send message">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <line x1="22" y1="2" x2="11" y2="13"/>
+                  <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+                </svg>
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
