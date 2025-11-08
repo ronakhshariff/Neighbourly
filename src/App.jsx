@@ -97,6 +97,22 @@ function App() {
     }, 1000)
   }
 
+  const handleQuickAction = (action) => {
+    if (action === 'learn-more') {
+      setShowChat(false)
+      document.body.style.overflow = 'unset'
+      setTimeout(() => {
+        handleLearnMore()
+      }, 200)
+    } else if (action === 'sign-up' || action === 'get-started') {
+      setShowChat(false)
+      document.body.style.overflow = 'unset'
+      setTimeout(() => {
+        handleGetStarted()
+      }, 200)
+    }
+  }
+
   return (
     <div className="app">
       <section className="hero-section">
@@ -595,6 +611,43 @@ function App() {
                   </div>
                 </div>
               ))}
+              
+              {chatMessages.length === 1 && (
+                <div className="quick-actions">
+                  <button 
+                    className="quick-action-btn" 
+                    onClick={() => handleQuickAction('learn-more')}
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <circle cx="12" cy="12" r="10"/>
+                      <line x1="12" y1="16" x2="12" y2="12"/>
+                      <line x1="12" y1="8" x2="12.01" y2="8"/>
+                    </svg>
+                    Learn More
+                  </button>
+                  <button 
+                    className="quick-action-btn" 
+                    onClick={() => handleQuickAction('get-started')}
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M5 12h14M12 5l7 7-7 7"/>
+                    </svg>
+                    Get Started
+                  </button>
+                  <button 
+                    className="quick-action-btn" 
+                    onClick={() => handleQuickAction('sign-up')}
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                      <circle cx="8.5" cy="7" r="4"/>
+                      <line x1="20" y1="8" x2="20" y2="14"/>
+                      <line x1="23" y1="11" x2="17" y2="11"/>
+                    </svg>
+                    Sign Up
+                  </button>
+                </div>
+              )}
             </div>
 
             <form className="chat-input-container" onSubmit={handleSendMessage}>
