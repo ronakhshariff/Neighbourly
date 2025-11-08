@@ -22,6 +22,7 @@ export interface RequestItem {
     latitude: number;
     longitude: number;
     address?: string;
+    areaName?: string; // human-readable area name from location service (e.g. "Downtown, Toronto")
   };
   images?: string[]; // links to images in s3
   acceptedBy?: string; // who's helping
