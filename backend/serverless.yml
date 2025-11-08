@@ -1,0 +1,145 @@
+service: neighbourly-backend
+
+frameworkVersion: '3'
+
+provider:
+  name: aws
+  runtime: nodejs18.x
+  region: us-east-1
+  stage: ${opt:stage, 'dev'}
+  memorySize: 256
+  timeout: 30
+  environment:
+    STAGE: ${self:provider.stage}
+    REGION: ${self:provider.region}
+    TABLE_NAME: ${self:custom.tableName}
+    USER_POOL_ID: ${self:custom.userPoolId}
+    USER_POOL_CLIENT_ID: ${self:custom.userPoolClientId}
+    S3_BUCKET: ${self:custom.s3Bucket}
+    OPENWEATHER_API_KEY: ${env:OPENWEATHER_API_KEY, ''} # TODO: add this to env vars
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+          - dynamodb:Query
+          - dynamodb:Scan
+          - dynamodb:GetItem
+          - dynamodb:PutItem
+          - dynamodb:UpdateItem
+          - dynamodb:DeleteItem
+          Resource:
+            - "arn:aws:dynamodb:${self:provider.region}:*:table/${self:custom.tableName}"
+            - "arn:aws:dynamodb:${self:provider.region}:*:table/${self:custom.tableName}/index/*"
+        - Effect: Allow
+          Action:
+          - s3:GetObject
+          - s3:PutObject
+          - s3:DeleteObject
+          Resource: "arn:aws:s3:::${self:custom.s3Bucket}/*"
+        - Effect: Allow
+          Action:
+          - s3:ListBucket
+          Resource: "arn:aws:s3:::${self:custom.s3Bucket}"
+        - Effect: Allow
+          Action:
+          - comprehend:DetectSentiment
+          - comprehend:DetectEntities
+          - translate:TranslateText
+          - rekognition:DetectLabels
+          - rekognition:DetectText
+          Resource: "*" # hack: using * for now, should restrict later
+        - Effect: Allow
+          Action:
+          - cognito-idp:AdminGetUser
+          - cognito-idp:ListUsers
+          Resource: "arn:aws:cognito-idp:${self:provider.region}:*:userpool/${self:custom.userPoolId}"
+
+custom:
+  tableName: neighbourly-${self:provider.stage}
+  userPoolId: ${env:COGNITO_USER_POOL_ID, ''} # need to set this
+  userPoolClientId: ${env:COGNITO_USER_POOL_CLIENT_ID, ''}
+  s3Bucket: neighbourly-uploads-${self:provider.stage}
+  # TODO: figure out if we need these
+  apiGateway:
+    restApiId: ${env:API_GATEWAY_ID, ''}
+    restApiRootResourceId: ${env:API_GATEWAY_ROOT_RESOURCE_ID, ''}
+
+functions:
+  # basic health check, no auth needed
+  health:
+    handler: src/handlers/health.healthCheck
+    events:
+      - http:
+          path: /
+          method: get
+          cors: true
+
+  # main request endpoints - start with these
+  createRequest:
+    handler: src/handlers/requests.createRequest
+    events:
+      - http:
+          path: /requests
+          method: post
+          cors: true
+          authorizer:
+            name: CognitoAuthorizer
+            type: COGNITO_USER_POOLS
+            arn: arn:aws:cognito-idp:${self:provider.region}:*:userpool/${self:custom.userPoolId}
+
+  getRequests:
+    handler: src/handlers/requests.getRequests
+    events:
+      - http:
+          path: /requests
+          method: get
+          cors: true
+          # TODO: maybe make this public? or add optional auth
+          authorizer:
+            name: CognitoAuthorizer
+            type: COGNITO_USER_POOLS
+            arn: arn:aws:cognito-idp:${self:provider.region}:*:userpool/${self:custom.userPoolId}
+
+  getRequest:
+    handler: src/handlers/requests.getRequest
+    events:
+      - http:
+          path: /requests/{requestId}
+          method: get
+          cors: true
+          authorizer:
+            name: CognitoAuthorizer
+            type: COGNITO_USER_POOLS
+            arn: arn:aws:cognito-idp:${self:provider.region}:*:userpool/${self:custom.userPoolId}
+
+  acceptRequest:
+    handler: src/handlers/requests.acceptRequest
+    events:
+      - http:
+          path: /requests/{requestId}/accept
+          method: post
+          cors: true
+          authorizer:
+            name: CognitoAuthorizer
+            type: COGNITO_USER_POOLS
+            arn: arn:aws:cognito-idp:${self:provider.region}:*:userpool/${self:custom.userPoolId} # this works for now
+
+  updateRequestStatus:
+    handler: src/handlers/requests.updateRequestStatus
+    events:
+      - http:
+          path: /requests/{requestId}/status
+          method: put
+          cors: true
+          authorizer:
+            name: CognitoAuthorizer
+            type: COGNITO_USER_POOLS
+            arn: arn:aws:cognito-idp:${self:provider.region}:*:userpool/${self:custom.userPoolId}
+
+  # TODO: add more endpoints later (messaging, notifications, etc)
+
+plugins:
+  - serverless-offline # for local dev
+  - serverless-plugin-typescript # compiles ts to js
+
