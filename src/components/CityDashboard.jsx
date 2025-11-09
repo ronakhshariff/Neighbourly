@@ -96,8 +96,7 @@ function CityDashboard() {
   }
 
   const handleViewFullMap = () => {
-    navigate('/dashboard/city/requests')
-    // Could set view mode to map here
+    navigate('/dashboard/city/map')
   }
 
   // Show verification modal if not verified

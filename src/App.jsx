@@ -38,6 +38,8 @@ function App() {
             <Route path="user/volunteer" element={<Volunteer />} />
             <Route path="city/requests" element={<HelpRequests />} />
             <Route path="user/requests" element={<HelpRequests />} />
+            <Route path="user/map" element={<HelpRequests />} />
+            <Route path="city/map" element={<HelpRequests />} />
             {/* default to user dashboard */}
             <Route index element={<Navigate to="/dashboard/user" replace />} />
           </Route>

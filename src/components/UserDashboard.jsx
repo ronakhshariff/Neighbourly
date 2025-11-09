@@ -116,8 +116,7 @@ function UserDashboard() {
   }
 
   const handleViewMap = () => {
-    navigate('/dashboard/user/requests')
-    // Could set view mode to map here
+    navigate('/dashboard/user/map')
   }
 
   const handleSubmitRequest = async (e) => {

@@ -490,9 +490,60 @@
 /* Map View */
 .help-requests-map-view {
   display: grid;
-  grid-template-columns: 2fr 1fr;
+  grid-template-columns: 280px 2fr 1fr;
   gap: 24px;
   animation: fadeInUp 0.5s ease;
+}
+
+/* Map Legend Sidebar - Left */
+.help-requests-map-legend-sidebar {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.help-requests-map-legend-sidebar .map-legend {
+  position: relative;
+  bottom: auto;
+  left: auto;
+  width: 100%;
+  max-width: 100%;
+  min-width: auto;
+  margin: 0;
+  height: fit-content;
+  max-height: 600px;
+  overflow-y: auto;
+}
+
+/* Responsive adjustments for map view */
+@media (max-width: 1400px) {
+  .help-requests-map-view {
+    grid-template-columns: 240px 2fr 1fr;
+    gap: 20px;
+  }
+}
+
+@media (max-width: 1200px) {
+  .help-requests-map-view {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+  
+  .help-requests-map-legend-sidebar {
+    order: 3;
+  }
+  
+  .help-requests-map-container {
+    order: 1;
+  }
+  
+  .help-requests-map-sidebar {
+    order: 2;
+  }
+  
+  .help-requests-map-legend-sidebar .map-legend {
+    max-height: none;
+  }
 }
 
 .help-requests-map-container {

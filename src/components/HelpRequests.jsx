@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { useLocation } from 'react-router-dom'
 import { useApp } from '../context/AppContext'
 import { requestsAPI, roadmapAPI } from '../services/api'
 import InteractiveMap from './InteractiveMap'
@@ -6,10 +7,14 @@ import './HelpRequests.css'
 
 function HelpRequests() {
   const { user } = useApp()
-  const [viewMode, setViewMode] = useState('list')
+  const location = useLocation()
+  // Default to map view if route includes '/map'
+  const [viewMode, setViewMode] = useState(location.pathname.includes('/map') ? 'map' : 'list')
   const [selectedCategory, setSelectedCategory] = useState('all')
   const [selectedPriority, setSelectedPriority] = useState('all')
   const [selectedStatus, setSelectedStatus] = useState('all')
+  const [selectedLayer, setSelectedLayer] = useState('all') // For map legend
+  const [showAccessibleRoads, setShowAccessibleRoads] = useState(true) // For map legend
   const [showRequestForm, setShowRequestForm] = useState(false)
   const [selectedRequest, setSelectedRequest] = useState(null)
   const [searchQuery, setSearchQuery] = useState('')
@@ -552,6 +557,66 @@ function HelpRequests() {
         </div>
       ) : (
         <div className="help-requests-map-view">
+          {/* Map Legend Sidebar - Left */}
+          <div className="help-requests-map-legend-sidebar">
+            <div className="map-legend">
+              <div className="map-legend-title">Map Legend</div>
+              {selectedLayer === 'all' || selectedLayer === 'requests' ? (
+                <div className="map-legend-section">
+                  <div className="map-legend-subtitle">Help Requests</div>
+                  <div className="map-legend-item">
+                    <div className="map-legend-dot urgent"></div>
+                    <span>Urgent</span>
+                  </div>
+                  <div className="map-legend-item">
+                    <div className="map-legend-dot high"></div>
+                    <span>High Priority</span>
+                  </div>
+                  <div className="map-legend-item">
+                    <div className="map-legend-dot medium"></div>
+                    <span>Medium Priority</span>
+                  </div>
+                  <div className="map-legend-item">
+                    <div className="map-legend-dot low"></div>
+                    <span>Low Priority</span>
+                  </div>
+                </div>
+              ) : null}
+              {selectedLayer === 'all' || selectedLayer === 'businesses' ? (
+                <div className="map-legend-section">
+                  <div className="map-legend-subtitle">Businesses</div>
+                  <div className="map-legend-item">
+                    <div className="map-legend-dot business"></div>
+                    <span>Accessible Business</span>
+                  </div>
+                </div>
+              ) : null}
+              {selectedLayer === 'all' || selectedLayer === 'accessibility' ? (
+                <div className="map-legend-section">
+                  <div className="map-legend-subtitle">Services</div>
+                  <div className="map-legend-item">
+                    <div className="map-legend-dot accessibility"></div>
+                    <span>Accessibility Service</span>
+                  </div>
+                </div>
+              ) : null}
+              {showAccessibleRoads && (
+                <div className="map-legend-section">
+                  <div className="map-legend-subtitle">Accessibility</div>
+                  <div className="map-legend-item">
+                    <div className="map-legend-line accessible"></div>
+                    <span>Accessible Route</span>
+                  </div>
+                  <div className="map-legend-item">
+                    <div className="map-legend-area accessible"></div>
+                    <span>Accessible Zone</span>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Map Container - Center */}
           <div className="help-requests-map-container">
             <InteractiveMap
               requests={filteredRequests}
@@ -561,8 +626,14 @@ function HelpRequests() {
               userLocation={userLocation}
               center={userLocation ? [userLocation.lng, userLocation.lat] : [-114.0719, 51.0447]}
               zoom={userLocation ? 13 : 12}
+              selectedLayer={selectedLayer}
+              onLayerChange={setSelectedLayer}
+              showAccessibleRoads={showAccessibleRoads}
+              onAccessibleRoadsToggle={setShowAccessibleRoads}
             />
           </div>
+
+          {/* Nearby Requests Sidebar - Right */}
           <div className="help-requests-map-sidebar">
             <h3 className="help-requests-map-sidebar-title">Nearby Requests</h3>
             <div className="help-requests-map-list">
