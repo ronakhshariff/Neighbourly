@@ -1,21 +1,9 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App.jsx'
-import { AuthProvider } from 'react-oidc-context'
+import { FirebaseAuthProvider } from './contexts/FirebaseAuthContext'
 import ErrorBoundary from './components/ErrorBoundary'
-import { COGNITO_CONFIG } from './config'
 import './index.css'
-
-// cognito config for OIDC auth (using hosted UI because it's easier)
-const cognitoAuthConfig = {
-  authority: COGNITO_CONFIG.authority,
-  client_id: COGNITO_CONFIG.clientId,
-  redirect_uri: COGNITO_CONFIG.redirectUri,
-  response_type: 'code',
-  scope: 'email openid profile',
-  automaticSilentRenew: true, // auto refresh tokens so users don't get logged out randomly
-  loadUserInfo: true
-}
 
 // try to render, if it breaks show error (better than blank screen)
 try {
@@ -27,9 +15,9 @@ try {
   ReactDOM.createRoot(root).render(
     <React.StrictMode>
       <ErrorBoundary>
-        <AuthProvider {...cognitoAuthConfig}>
+        <FirebaseAuthProvider>
           <App />
-        </AuthProvider>
+        </FirebaseAuthProvider>
       </ErrorBoundary>
     </React.StrictMode>
   )

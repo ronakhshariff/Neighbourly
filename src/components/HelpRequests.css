@@ -497,6 +497,7 @@
 
 .help-requests-map-container {
   height: 600px;
+  min-height: 600px;
   border-radius: 20px;
   overflow: hidden;
   background: linear-gradient(135deg, 
@@ -505,6 +506,7 @@
   );
   border: 2px solid rgba(255, 255, 255, 0.4);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+  position: relative;
 }
 
 .help-requests-map-placeholder {

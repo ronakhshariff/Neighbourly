@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react'
-import { useAuth } from '../contexts/AuthContextWrapper'
+import { useFirebaseAuth } from '../contexts/FirebaseAuthContext'
 import { requestsAPI, volunteerAPI, cityAPI, notificationAPI } from '../services/api'
 import { api } from '../api'
 
@@ -14,27 +14,35 @@ export const useApp = () => {
 }
 
 export const AppProvider = ({ children }) => {
-  const cognitoAuth = useAuth()
+  const firebaseAuth = useFirebaseAuth()
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
   const [notifications, setNotifications] = useState([])
   const [unreadCount, setUnreadCount] = useState(0)
 
-  // Sync user from Cognito auth or create guest user
+  // Sync user from Firebase auth or create guest user
   useEffect(() => {
     const syncUser = async () => {
       try {
-        if (cognitoAuth.isAuthenticated && cognitoAuth.user) {
-          // User is authenticated via Cognito
-          setUser(cognitoAuth.user)
+        if (firebaseAuth.isAuthenticated && firebaseAuth.user) {
+          // User is authenticated via Firebase
+          const firebaseUser = {
+            id: firebaseAuth.user.uid,
+            email: firebaseAuth.user.email,
+            name: firebaseAuth.user.displayName || firebaseAuth.user.email?.split('@')[0] || 'User',
+            role: 'user',
+            isGuest: false,
+            sub: firebaseAuth.user.uid
+          }
+          setUser(firebaseUser)
           
           // Try to get additional user data from backend
           try {
             const currentUser = await api.getCurrentUser()
-            setUser({ ...cognitoAuth.user, ...currentUser })
+            setUser({ ...firebaseUser, ...currentUser })
           } catch (error) {
-            // Backend might not be available, use Cognito user data
-            console.log('Using Cognito user data only:', error)
+            // Backend might not be available, use Firebase user data
+            console.log('Using Firebase user data only:', error)
           }
         } else {
           // Create guest user for unauthenticated access
@@ -63,7 +71,7 @@ export const AppProvider = ({ children }) => {
     }
 
     syncUser()
-  }, [cognitoAuth.isAuthenticated, cognitoAuth.user, cognitoAuth.loading])
+  }, [firebaseAuth.isAuthenticated, firebaseAuth.user, firebaseAuth.loading])
 
   // Load notifications
   useEffect(() => {
@@ -85,19 +93,18 @@ export const AppProvider = ({ children }) => {
     }
   }
 
-  const login = async () => {
+  const login = async (email, password) => {
     try {
-      cognitoAuth.login() // Redirects to Cognito hosted UI
+      await firebaseAuth.login(email, password)
       return { success: true }
     } catch (error) {
       return { success: false, error: error.message }
     }
   }
 
-  const signup = async (userData) => {
+  const signup = async (email, password, displayName) => {
     try {
-      // Cognito handles signup through hosted UI
-      cognitoAuth.login() // Redirects to Cognito where user can sign up
+      await firebaseAuth.signup(email, password, displayName)
       return { success: true }
     } catch (error) {
       return { success: false, error: error.message }
@@ -106,7 +113,7 @@ export const AppProvider = ({ children }) => {
 
   const logout = async () => {
     try {
-      cognitoAuth.logout() // Handles Cognito logout and redirect
+      await firebaseAuth.logout()
       setUser(null)
       setNotifications([])
       setUnreadCount(0)
@@ -146,7 +153,7 @@ export const AppProvider = ({ children }) => {
 
   const value = {
     user,
-    loading: loading || cognitoAuth.loading,
+    loading: loading || firebaseAuth.loading,
     notifications,
     unreadCount,
     login,
@@ -156,7 +163,7 @@ export const AppProvider = ({ children }) => {
     markNotificationAsRead,
     markAllNotificationsAsRead,
     refreshNotifications: loadNotifications,
-    isAuthenticated: cognitoAuth.isAuthenticated,
+    isAuthenticated: firebaseAuth.isAuthenticated,
   }
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>

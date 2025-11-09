@@ -1,6 +1,6 @@
 import React from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import { useAuth } from './contexts/AuthContextWrapper'
+import { useFirebaseAuth } from './contexts/FirebaseAuthContext'
 import { AppProvider } from './context/AppContext'
 import DashboardLayout from './components/DashboardLayout'
 import CityDashboard from './components/CityDashboard'
@@ -14,7 +14,7 @@ import ProtectedRoute from './components/ProtectedRoute'
 import './App.css'
 
 function App() {
-  const { isAuthenticated } = useAuth()
+  const { isAuthenticated } = useFirebaseAuth()
 
   return (
     <AppProvider>

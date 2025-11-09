@@ -1,9 +1,9 @@
 // wrapper for routes that need auth - allows guest access for now
 import React from 'react'
-import { useAuth } from '../contexts/AuthContextWrapper'
+import { useFirebaseAuth } from '../contexts/FirebaseAuthContext'
 
 function ProtectedRoute({ children }) {
-  const { loading } = useAuth()
+  const { loading } = useFirebaseAuth()
 
   // wait for auth check to finish
   if (loading) {

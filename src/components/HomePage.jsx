@@ -173,11 +173,16 @@ function HomePage() {
       setTimeout(() => {
         handleLearnMore()
       }, 200)
-    } else if (action === 'sign-up' || action === 'get-started') {
+    } else if (action === 'sign-up') {
+      setShowChat(false)
+      document.body.style.overflow = 'unset'
+      // Navigate to Mazen's login/signup page
+      navigate('/login')
+    } else if (action === 'contact-us') {
       setShowChat(false)
       document.body.style.overflow = 'unset'
       setTimeout(() => {
-        handleGetStarted()
+        setShowContact(true)
       }, 200)
     }
   }
@@ -1225,12 +1230,12 @@ function HomePage() {
                   </button>
                   <button 
                     className="quick-action-btn" 
-                    onClick={() => handleQuickAction('get-started')}
+                    onClick={() => handleQuickAction('contact-us')}
                   >
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M5 12h14M12 5l7 7-7 7"/>
+                      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
                     </svg>
-                    Get Started
+                    Contact Us
                   </button>
                   <button 
                     className="quick-action-btn" 
