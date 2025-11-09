@@ -539,8 +539,9 @@ function HomePage() {
           <h1 className="welcome-heading">WELCOME</h1>
           
           <p className="body-text">
-            Connecting neighbors in need with nearby helpers. 
-            Building stronger, more resilient communities together.
+            When someone needs a helping hand, we connect them with their community. 
+            Find accessible places, get step-by-step guidance, and build connections 
+            where everyone belongs.
           </p>
 
           <button className="learn-more-button" onClick={handleLearnMore}>
@@ -959,14 +960,14 @@ function HomePage() {
         <div className="section-container">
           <h2 className="section-heading">About Burrowly</h2>
           <p className="section-text">
-            More than half of us live in cities now, and that number keeps growing. But our cities are 
-            struggling with transportation, housing costs, pollution, and infrastructure that can't keep up. 
-            When emergencies happen or someone needs help, official services can't always get there in time. 
-            That's where Burrowly comes in. We connect neighbors who need help with neighbors who can 
-            help, using smart technology to make sure no one gets left behind. But we're not just for 
-            individual users. We offer powerful value for city planners, municipal data teams, and community 
-            services. Our platform turns every interaction into actionable data that helps cities identify 
-            underserved zones, allocate resources effectively, and build more inclusive communities.
+            Life in cities can be tough. When someone needs groceries during a snowstorm, or can't get up 
+            a blocked ramp, or doesn't speak the language—official services try their best, but they can't 
+            always be there in time. That's where Burrowly comes in. We connect people who need a helping 
+            hand with people in their community who want to help. No matter what language you speak, how you 
+            move through the world, or what barriers you face, you can ask for help and find it. And when 
+            cities see where help is needed most, they can make better decisions about where to invest in 
+            accessibility, transportation, and community resources. It's about making sure no one gets left 
+            behind, and that everyone has a place where they belong.
           </p>
         </div>
       </section>

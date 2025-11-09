@@ -25,8 +25,19 @@ export const FirebaseAuthProvider = ({ children }) => {
   const [error, setError] = useState(null)
 
   useEffect(() => {
+    if (!auth) {
+      console.error('Firebase Auth is not available. Please check your Firebase configuration.')
+      setLoading(false)
+      setError('Firebase authentication is not configured. Please check your API key.')
+      return
+    }
+
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setUser(user)
+      setLoading(false)
+    }, (error) => {
+      console.error('Auth state change error:', error)
+      setError(error.message)
       setLoading(false)
     })
 
@@ -34,6 +45,11 @@ export const FirebaseAuthProvider = ({ children }) => {
   }, [])
 
   const login = async (email, password) => {
+    if (!auth) {
+      const error = new Error('Firebase Auth is not available. Please check your Firebase API key.')
+      setError(error.message)
+      throw error
+    }
     try {
       setError(null)
       const userCredential = await signInWithEmailAndPassword(auth, email, password)
@@ -45,6 +61,11 @@ export const FirebaseAuthProvider = ({ children }) => {
   }
 
   const signup = async (email, password, displayName) => {
+    if (!auth) {
+      const error = new Error('Firebase Auth is not available. Please check your Firebase API key.')
+      setError(error.message)
+      throw error
+    }
     try {
       setError(null)
       const userCredential = await createUserWithEmailAndPassword(auth, email, password)
