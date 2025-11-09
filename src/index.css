@@ -1,0 +1,140 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+}
+
+/* Smooth scrolling */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Focus styles for accessibility */
+*:focus-visible {
+  outline: 2px solid rgba(99, 102, 241, 0.8);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+:root {
+  --font-size-multiplier: 1;
+  --zoom-level: 1;
+}
+
+body {
+  font-size: calc(16px * var(--font-size-multiplier));
+  zoom: var(--zoom-level);
+}
+
+/* High Contrast Mode */
+.high-contrast * {
+  background: #fff !important;
+  color: #000 !important;
+  border-color: #000 !important;
+}
+
+.high-contrast .navbar,
+.high-contrast .feature-card,
+.high-contrast .modal-content {
+  background: #fff !important;
+  border: 2px solid #000 !important;
+}
+
+.high-contrast .learn-more-button,
+.high-contrast .cta-button,
+.high-contrast .join-button {
+  background: #000 !important;
+  color: #fff !important;
+  border: 2px solid #000 !important;
+}
+
+/* Color Blindness Filters */
+.color-blind-protanopia {
+  filter: url(#protanopia);
+}
+
+.color-blind-deuteranopia {
+  filter: url(#deuteranopia);
+}
+
+.color-blind-tritanopia {
+  filter: url(#tritanopia);
+}
+
+/* ADHD Focus Mode */
+.adhd-mode .gradient-orb,
+.adhd-mode .modal-bg-orb,
+.adhd-mode .button-glow,
+.adhd-mode .cta-button-glow {
+  display: none !important;
+}
+
+.adhd-mode .nav-links a:not(:first-child):not(:last-child) {
+  opacity: 0.5;
+}
+
+.adhd-mode * {
+  animation-duration: 0.01ms !important;
+  transition-duration: 0.01ms !important;
+}
+
+/* Sensory-Friendly Mode */
+.sensory-friendly {
+  --calming-bg: #f5f5f0;
+  --calming-text: #2d2d2d;
+  --calming-accent: #6b8e6b;
+}
+
+.sensory-friendly .navbar {
+  background: var(--calming-bg) !important;
+}
+
+.sensory-friendly .hero-background {
+  background: linear-gradient(135deg, #f5f5f0 0%, #e8e8e0 50%, #f0f0ea 100%) !important;
+}
+
+.sensory-friendly .gradient-orb {
+  opacity: 0.2 !important;
+}
+
+.sensory-friendly .learn-more-button,
+.sensory-friendly .cta-button,
+.sensory-friendly .join-button {
+  background: var(--calming-accent) !important;
+  color: #fff !important;
+}
+
+.sensory-friendly * {
+  box-shadow: none !important;
+}
+
+/* Text Highlighting */
+.highlight-text p,
+.highlight-text .section-text,
+.highlight-text .body-text {
+  background-image: repeating-linear-gradient(
+    transparent,
+    transparent 1.5em,
+    rgba(255, 255, 0, 0.3) 1.5em,
+    rgba(255, 255, 0, 0.3) calc(1.5em + 1px)
+  );
+  background-attachment: local;
+}
+
+/* Reduce Motion */
+.reduce-motion *,
+.reduce-motion *::before,
+.reduce-motion *::after {
+  animation: none !important;
+  transition: none !important;
+}
