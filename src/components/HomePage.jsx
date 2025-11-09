@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
+import { useApp } from '../context/AppContext'
 import '../App.css'
 import burrowlyLogo from '../neighbourly_logo.PNG'
 import binooLogo from '../binoo.PNG'
 
 function HomePage() {
+  const navigate = useNavigate()
+  const { signup } = useApp()
   const [scrollY, setScrollY] = useState(0)
   const [isVisible, setIsVisible] = useState(false)
   const [showLearnMore, setShowLearnMore] = useState(false)
@@ -20,6 +23,15 @@ function HomePage() {
     }
   ])
   const [inputMessage, setInputMessage] = useState("")
+  const [signupFormData, setSignupFormData] = useState({
+    name: '',
+    email: '',
+    location: '',
+    role: '',
+    password: '',
+    confirmPassword: '',
+  })
+  const [signupSubmitting, setSignupSubmitting] = useState(false)
   
   // Accessibility preferences
   const [a11yPrefs, setA11yPrefs] = useState(() => {
@@ -169,6 +181,12 @@ function HomePage() {
     }
   }
 
+  const handleSignupSubmit = async (e) => {
+    e.preventDefault()
+    // Cognito handles signup through hosted UI, so just redirect to login
+    navigate('/login')
+  }
+
   return (
     <div className="app">
       {/* SVG Filters for Color Blindness */}
@@ -232,8 +250,8 @@ function HomePage() {
             </div>
 
             <div className="nav-actions" style={{ position: 'relative' }}>
-              <Link to="/dashboard/user" className="login-button">Log In</Link>
-              <Link to="/dashboard/user" className="join-button">Join Now</Link>
+              <Link to="/login" className="login-button">Log In</Link>
+              <Link to="/login" className="join-button">Join Now</Link>
               <button 
                 className="settings-button" 
                 onClick={() => setShowA11ySettings(!showA11ySettings)}
@@ -641,7 +659,7 @@ function HomePage() {
 
               <div className="modal-cta-section">
                 <Link 
-                  to="/dashboard/user"
+                  to="/login"
                   className="modal-cta-button" 
                   onClick={handleCloseLearnMore}
                 >
@@ -675,26 +693,65 @@ function HomePage() {
             </div>
 
             <div className="signup-body">
-              <form className="signup-form">
+              <form className="signup-form" onSubmit={handleSignupSubmit}>
                 <div className="form-group">
-                  <label htmlFor="name">Full Name</label>
+                  <label htmlFor="name">Full Name *</label>
                   <input 
                     type="text" 
                     id="name" 
                     name="name" 
                     placeholder="John Doe"
                     className="form-input"
+                    value={signupFormData.name}
+                    onChange={(e) => setSignupFormData({ ...signupFormData, name: e.target.value })}
+                    required
+                    disabled={signupSubmitting}
                   />
                 </div>
 
                 <div className="form-group">
-                  <label htmlFor="email">Email Address</label>
+                  <label htmlFor="email">Email Address *</label>
                   <input 
                     type="email" 
                     id="email" 
                     name="email" 
                     placeholder="john@example.com"
                     className="form-input"
+                    value={signupFormData.email}
+                    onChange={(e) => setSignupFormData({ ...signupFormData, email: e.target.value })}
+                    required
+                    disabled={signupSubmitting}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="password">Password *</label>
+                  <input 
+                    type="password" 
+                    id="password" 
+                    name="password" 
+                    placeholder="Create a password"
+                    className="form-input"
+                    value={signupFormData.password}
+                    onChange={(e) => setSignupFormData({ ...signupFormData, password: e.target.value })}
+                    required
+                    disabled={signupSubmitting}
+                    minLength={6}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="confirmPassword">Confirm Password *</label>
+                  <input 
+                    type="password" 
+                    id="confirmPassword" 
+                    name="confirmPassword" 
+                    placeholder="Confirm your password"
+                    className="form-input"
+                    value={signupFormData.confirmPassword}
+                    onChange={(e) => setSignupFormData({ ...signupFormData, confirmPassword: e.target.value })}
+                    required
+                    disabled={signupSubmitting}
                   />
                 </div>
 
@@ -706,12 +763,22 @@ function HomePage() {
                     name="location" 
                     placeholder="City, State"
                     className="form-input"
+                    value={signupFormData.location}
+                    onChange={(e) => setSignupFormData({ ...signupFormData, location: e.target.value })}
+                    disabled={signupSubmitting}
                   />
                 </div>
 
                 <div className="form-group">
                   <label htmlFor="role">I want to</label>
-                  <select id="role" name="role" className="form-select">
+                  <select 
+                    id="role" 
+                    name="role" 
+                    className="form-select"
+                    value={signupFormData.role}
+                    onChange={(e) => setSignupFormData({ ...signupFormData, role: e.target.value })}
+                    disabled={signupSubmitting}
+                  >
                     <option value="">Select an option</option>
                     <option value="help">Offer help to neighbors</option>
                     <option value="need">Request help when needed</option>
@@ -721,18 +788,28 @@ function HomePage() {
 
                 <div className="form-group">
                   <label className="checkbox-label">
-                    <input type="checkbox" name="terms" className="form-checkbox"/>
-                    <span>I agree to the Terms of Service and Privacy Policy</span>
+                    <input 
+                      type="checkbox" 
+                      name="terms" 
+                      className="form-checkbox"
+                      required
+                      disabled={signupSubmitting}
+                    />
+                    <span>I agree to the Terms of Service and Privacy Policy *</span>
                   </label>
                 </div>
 
-                <Link to="/dashboard/user" className="signup-submit-button" onClick={handleCloseModal}>
-                  <span>Create Account</span>
+                <button 
+                  type="submit" 
+                  className="signup-submit-button"
+                  disabled={signupSubmitting}
+                >
+                  <span>{signupSubmitting ? 'Creating Account...' : 'Create Account'}</span>
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                     <path d="M5 12h14M12 5l7 7-7 7"/>
                   </svg>
                   <div className="submit-button-glow"></div>
-                </Link>
+                </button>
               </form>
 
               <div className="signup-divider">

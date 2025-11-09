@@ -1,84 +1,107 @@
-import React, { useState } from 'react'
-import { helpRequests } from '../data/mockData'
+import React, { useState, useEffect } from 'react'
+import { useApp } from '../context/AppContext'
+import { volunteerAPI } from '../services/api'
 import './Volunteer.css'
 
 function Volunteer() {
+  const { user } = useApp()
   const [activeTab, setActiveTab] = useState('opportunities')
   const [selectedFilter, setSelectedFilter] = useState('all')
+  const [volunteerStats, setVolunteerStats] = useState({
+    totalHelps: 0,
+    hoursVolunteered: 0,
+    currentActive: 0,
+    rating: 0,
+    streak: 0
+  })
+  const [activeOpportunities, setActiveOpportunities] = useState([])
+  const [myActiveHelps, setMyActiveHelps] = useState([])
+  const [achievements, setAchievements] = useState([])
+  const [volunteerHistory, setVolunteerHistory] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState(null)
 
-  // Mock data
-  const volunteerStats = {
-    totalHelps: 47,
-    hoursVolunteered: 128,
-    currentActive: 3,
-    rating: 4.9,
-    streak: 12
+  // Load data based on active tab
+  useEffect(() => {
+    if (!user || user.isGuest) {
+      setLoading(false)
+      return
+    }
+    
+    loadData()
+    
+    // Real-time polling - update every 10 seconds
+    const interval = setInterval(() => {
+      loadData()
+    }, 10000)
+    
+    return () => clearInterval(interval)
+  }, [activeTab, selectedFilter, user?.id])
+
+  const loadData = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+
+      // Always load stats
+      const stats = await volunteerAPI.getStats()
+      setVolunteerStats(stats)
+
+      if (activeTab === 'opportunities') {
+        const response = await volunteerAPI.getOpportunities({ category: selectedFilter !== 'all' ? selectedFilter : undefined })
+        setActiveOpportunities(response.opportunities || [])
+      } else if (activeTab === 'active') {
+        const response = await volunteerAPI.getMyHelps()
+        setMyActiveHelps(response.helps || [])
+      } else if (activeTab === 'achievements') {
+        const response = await volunteerAPI.getAchievements()
+        setAchievements(response.achievements || [])
+      } else if (activeTab === 'history') {
+        const response = await volunteerAPI.getHistory()
+        setVolunteerHistory(response.history || [])
+      }
+    } catch (err) {
+      setError(err.message || 'Failed to load data')
+      console.error('Error loading volunteer data:', err)
+    } finally {
+      setLoading(false)
+    }
   }
 
-  // Use shared data - convert helpRequests to opportunities format
-  const activeOpportunities = helpRequests.filter(r => r.status === 'Active').map(request => ({
-    id: request.id,
-    title: request.title,
-    requester: request.requester,
-    distance: request.distance,
-    urgency: request.urgency,
-    category: request.category,
-    timeNeeded: request.timeNeeded,
-    posted: request.time,
-    description: request.description,
-    skills: request.skills || [],
-    reward: `${request.category} Helper Badge`,
-    volunteersNeeded: request.volunteersNeeded,
-    currentVolunteers: request.volunteerCount
-  }))
-
-  const myActiveHelps = [
-    {
-      id: 1,
-      title: 'Water delivery during heatwave',
-      requester: 'Elena R.',
-      status: 'In Progress',
-      accepted: '2 hours ago',
-      estimatedCompletion: '30 min',
-      contact: 'Masked phone number available'
-    },
-    {
-      id: 2,
-      title: 'Accessibility issue report',
-      requester: 'David M.',
-      status: 'Scheduled',
-      accepted: '1 day ago',
-      scheduledTime: 'Tomorrow, 2:00 PM',
-      contact: 'In-app chat'
-    },
-    {
-      id: 3,
-      title: 'Medication pickup',
-      requester: 'Sarah L.',
-      status: 'Completed',
-      completed: '2 days ago',
-      rating: 5,
-      feedback: 'Thank you so much! You were incredibly helpful and kind.'
+  const handleAcceptOpportunity = async (requestId) => {
+    try {
+      setSubmitting(true)
+      await volunteerAPI.acceptOpportunity(requestId)
+      alert('Opportunity accepted! Check "My Active Helps" tab.')
+      // Reload opportunities
+      const response = await volunteerAPI.getOpportunities({ category: selectedFilter !== 'all' ? selectedFilter : undefined })
+      setActiveOpportunities(response.opportunities || [])
+      // Reload stats
+      const stats = await volunteerAPI.getStats()
+      setVolunteerStats(stats)
+    } catch (err) {
+      alert(err.message || 'Failed to accept opportunity')
+      console.error('Error accepting opportunity:', err)
+    } finally {
+      setSubmitting(false)
     }
-  ]
+  }
 
-  const achievements = [
-    { id: 1, name: 'First Help', icon: '🌟', earned: true, date: 'Jan 15, 2024' },
-    { id: 2, name: '10 Helps', icon: '⭐', earned: true, date: 'Feb 20, 2024' },
-    { id: 3, name: '50 Helps', icon: '🏆', earned: true, date: 'Dec 10, 2024' },
-    { id: 4, name: '100 Helps', icon: '💎', earned: false, progress: 47 },
-    { id: 5, name: 'Week Streak', icon: '🔥', earned: true, date: 'Current' },
-    { id: 6, name: 'Month Streak', icon: '⚡', earned: false, progress: 12 },
-    { id: 7, name: 'Elderly Care Specialist', icon: '👴', earned: true, date: 'Nov 5, 2024' },
-    { id: 8, name: 'Accessibility Champion', icon: '♿', earned: true, date: 'Oct 18, 2024' }
-  ]
-
-  const volunteerHistory = [
-    { id: 1, title: 'Grocery shopping assistance', date: '2 days ago', hours: 1.5, rating: 5 },
-    { id: 2, title: 'Snow removal', date: '5 days ago', hours: 0.75, rating: 5 },
-    { id: 3, title: 'Medical appointment transport', date: '1 week ago', hours: 2, rating: 5 },
-    { id: 4, title: 'Community garden work', date: '2 weeks ago', hours: 3, rating: 4.8 }
-  ]
+  const handleMarkComplete = async (helpId, hoursSpent = 1) => {
+    try {
+      setSubmitting(true)
+      await volunteerAPI.markComplete(helpId, { hoursSpent, notes: 'Completed successfully' })
+      alert('Help marked as completed!')
+      // Reload data
+      await loadData()
+    } catch (err) {
+      alert(err.message || 'Failed to mark as complete')
+      console.error('Error marking complete:', err)
+    } finally {
+      setSubmitting(false)
+    }
+  }
 
   const filters = ['all', 'High Priority', 'Nearby', 'Elderly Care', 'Accessibility', 'Community']
 
@@ -234,6 +257,20 @@ function Volunteer() {
                 ))}
               </div>
             </div>
+            {loading ? (
+              <div style={{ textAlign: 'center', padding: '60px 20px', color: 'rgba(0,0,0,0.6)' }}>
+                <div style={{ fontSize: '18px', fontWeight: 600 }}>Loading opportunities...</div>
+              </div>
+            ) : error ? (
+              <div style={{ textAlign: 'center', padding: '60px 20px', color: '#ef4444' }}>
+                <div style={{ fontSize: '18px', fontWeight: 600 }}>{error}</div>
+              </div>
+            ) : activeOpportunities.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '60px 20px', color: 'rgba(0,0,0,0.6)' }}>
+                <div style={{ fontSize: '18px', fontWeight: 600, marginBottom: '8px' }}>No opportunities found</div>
+                <div style={{ fontSize: '14px' }}>Check back later for new volunteer opportunities</div>
+              </div>
+            ) : (
             <div className="volunteer-opportunities-grid">
               {activeOpportunities.map(opp => (
                 <div key={opp.id} className="volunteer-opportunity-card">
@@ -297,10 +334,17 @@ function Volunteer() {
                     </svg>
                     <span>Reward: {opp.reward}</span>
                   </div>
-                  <button className="volunteer-accept-btn">Accept Opportunity</button>
+                  <button 
+                    className="volunteer-accept-btn"
+                    onClick={() => handleAcceptOpportunity(opp.id)}
+                    disabled={submitting}
+                  >
+                    {submitting ? 'Processing...' : 'Accept Opportunity'}
+                  </button>
                 </div>
               ))}
             </div>
+            )}
           </div>
         )}
 
@@ -309,6 +353,20 @@ function Volunteer() {
             <div className="volunteer-section-header">
               <h2 className="volunteer-section-title">My Active Helps</h2>
             </div>
+            {loading ? (
+              <div style={{ textAlign: 'center', padding: '60px 20px', color: 'rgba(0,0,0,0.6)' }}>
+                <div style={{ fontSize: '18px', fontWeight: 600 }}>Loading active helps...</div>
+              </div>
+            ) : error ? (
+              <div style={{ textAlign: 'center', padding: '60px 20px', color: '#ef4444' }}>
+                <div style={{ fontSize: '18px', fontWeight: 600 }}>{error}</div>
+              </div>
+            ) : myActiveHelps.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '60px 20px', color: 'rgba(0,0,0,0.6)' }}>
+                <div style={{ fontSize: '18px', fontWeight: 600, marginBottom: '8px' }}>No active helps</div>
+                <div style={{ fontSize: '14px' }}>Accept opportunities from the Opportunities tab to get started</div>
+              </div>
+            ) : (
             <div className="volunteer-active-helps-list">
               {myActiveHelps.map(help => (
                 <div key={help.id} className="volunteer-active-help-card">
@@ -386,20 +444,42 @@ function Volunteer() {
                   <div className="volunteer-active-help-actions">
                     {help.status === 'In Progress' && (
                       <>
-                        <button className="volunteer-action-btn primary">Contact</button>
-                        <button className="volunteer-action-btn">Mark Complete</button>
+                        <button 
+                          className="volunteer-action-btn primary"
+                          onClick={() => alert('Chat feature coming soon!')}
+                        >
+                          Contact
+                        </button>
+                        <button 
+                          className="volunteer-action-btn"
+                          onClick={() => handleMarkComplete(help.id)}
+                          disabled={submitting}
+                        >
+                          {submitting ? 'Processing...' : 'Mark Complete'}
+                        </button>
                       </>
                     )}
                     {help.status === 'Scheduled' && (
-                      <button className="volunteer-action-btn primary">View Details</button>
+                      <button 
+                        className="volunteer-action-btn primary"
+                        onClick={() => alert('View details feature - request ID: ' + help.id)}
+                      >
+                        View Details
+                      </button>
                     )}
                     {help.status === 'Completed' && (
-                      <button className="volunteer-action-btn">View Details</button>
+                      <button 
+                        className="volunteer-action-btn"
+                        onClick={() => alert('View details feature - request ID: ' + help.id)}
+                      >
+                        View Details
+                      </button>
                     )}
                   </div>
                 </div>
               ))}
             </div>
+            )}
           </div>
         )}
 
@@ -409,6 +489,11 @@ function Volunteer() {
               <h2 className="volunteer-section-title">Your Achievements</h2>
               <p className="volunteer-section-description">Track your volunteer milestones and unlock new badges</p>
             </div>
+            {loading ? (
+              <div style={{ textAlign: 'center', padding: '60px 20px', color: 'rgba(0,0,0,0.6)' }}>
+                <div style={{ fontSize: '18px', fontWeight: 600 }}>Loading achievements...</div>
+              </div>
+            ) : (
             <div className="volunteer-achievements-grid">
               {achievements.map(achievement => (
                 <div key={achievement.id} className={`volunteer-achievement-card ${achievement.earned ? 'earned' : 'locked'}`}>
@@ -439,6 +524,7 @@ function Volunteer() {
                 </div>
               ))}
             </div>
+            )}
           </div>
         )}
 
@@ -448,6 +534,16 @@ function Volunteer() {
               <h2 className="volunteer-section-title">Volunteer History</h2>
               <p className="volunteer-section-description">Your complete volunteering journey</p>
             </div>
+            {loading ? (
+              <div style={{ textAlign: 'center', padding: '60px 20px', color: 'rgba(0,0,0,0.6)' }}>
+                <div style={{ fontSize: '18px', fontWeight: 600 }}>Loading history...</div>
+              </div>
+            ) : volunteerHistory.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '60px 20px', color: 'rgba(0,0,0,0.6)' }}>
+                <div style={{ fontSize: '18px', fontWeight: 600, marginBottom: '8px' }}>No history yet</div>
+                <div style={{ fontSize: '14px' }}>Complete helps to see them in your history</div>
+              </div>
+            ) : (
             <div className="volunteer-history-list">
               {volunteerHistory.map(item => (
                 <div key={item.id} className="volunteer-history-card">
@@ -477,6 +573,7 @@ function Volunteer() {
                 </div>
               ))}
             </div>
+            )}
           </div>
         )}
       </div>

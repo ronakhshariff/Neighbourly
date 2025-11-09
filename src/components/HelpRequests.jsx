@@ -1,42 +1,205 @@
-import React, { useState } from 'react'
-import { helpRequests, myRequests } from '../data/mockData'
+import React, { useState, useEffect } from 'react'
+import { useApp } from '../context/AppContext'
+import { requestsAPI } from '../services/api'
 import './HelpRequests.css'
 
 function HelpRequests() {
-  const [viewMode, setViewMode] = useState('list') // 'list' or 'map'
+  const { user } = useApp()
+  const [viewMode, setViewMode] = useState('list')
   const [selectedCategory, setSelectedCategory] = useState('all')
   const [selectedPriority, setSelectedPriority] = useState('all')
   const [selectedStatus, setSelectedStatus] = useState('all')
   const [showRequestForm, setShowRequestForm] = useState(false)
   const [selectedRequest, setSelectedRequest] = useState(null)
   const [searchQuery, setSearchQuery] = useState('')
+  const [requests, setRequests] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+  const [submitting, setSubmitting] = useState(false)
+  const [formData, setFormData] = useState({
+    title: '',
+    description: '',
+    category: '',
+    priority: 'Medium',
+    location: '',
+    timeNeeded: '1 hour',
+    image: null,
+  })
 
   const categories = ['all', 'Accessibility', 'Medical', 'Community', 'Elderly Care', 'Language Support', 'Safety']
   const priorities = ['all', 'Urgent', 'High', 'Medium', 'Low']
   const statuses = ['all', 'Active', 'Assigned', 'Completed']
 
-  // Filter requests
-  const filteredRequests = helpRequests.filter(request => {
-    const matchesCategory = selectedCategory === 'all' || request.category === selectedCategory
-    const matchesPriority = selectedPriority === 'all' || request.priority === selectedPriority
-    const matchesStatus = selectedStatus === 'all' || request.status === selectedStatus
-    const matchesSearch = searchQuery === '' || 
-      request.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      request.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      request.location.toLowerCase().includes(searchQuery.toLowerCase())
+  // Load requests on component mount and when filters change
+  useEffect(() => {
+    loadRequests()
     
-    return matchesCategory && matchesPriority && matchesStatus && matchesSearch
+    // Real-time polling - update every 10 seconds
+    const interval = setInterval(() => {
+      loadRequests()
+    }, 10000)
+    
+    return () => clearInterval(interval)
+  }, [selectedCategory, selectedPriority, selectedStatus, searchQuery, user?.id])
+
+  const loadRequests = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      const filters = {
+        category: selectedCategory !== 'all' ? selectedCategory : undefined,
+        priority: selectedPriority !== 'all' ? selectedPriority : undefined,
+        status: selectedStatus !== 'all' ? selectedStatus : undefined,
+        search: searchQuery || undefined,
+      }
+      // Remove undefined values
+      Object.keys(filters).forEach(key => filters[key] === undefined && delete filters[key])
+      
+      const response = await requestsAPI.getAll(filters)
+      let allRequests = response.requests || response || []
+      
+      // If user is not a guest, filter to show user-specific data when appropriate
+      // (e.g., show user's own requests in a separate view if needed)
+      // For now, show all requests but mark user's own requests
+      if (user && !user.isGuest) {
+        allRequests = allRequests.map(req => ({
+          ...req,
+          isMine: req.requesterId === user.id || req.requester === user.email,
+          isAcceptedByMe: req.volunteerId === user.id || req.volunteer === user.email,
+        }))
+      }
+      
+      setRequests(allRequests)
+    } catch (err) {
+      setError(err.message || 'Failed to load requests')
+      console.error('Error loading requests:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleAcceptRequest = async (requestId) => {
+    try {
+      setSubmitting(true)
+      const updated = await requestsAPI.accept(requestId)
+      setRequests(prev => prev.map(r => r.id === updated.id ? updated : r))
+      if (selectedRequest && selectedRequest.id === requestId) {
+        setSelectedRequest(updated)
+      }
+      alert('Request accepted successfully!')
+    } catch (err) {
+      alert(err.message || 'Failed to accept request')
+      console.error('Error accepting request:', err)
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const handleViewDetails = async (requestId) => {
+    try {
+      const request = await requestsAPI.getById(requestId)
+      setSelectedRequest(request)
+    } catch (err) {
+      alert(err.message || 'Failed to load request details')
+      console.error('Error loading request:', err)
+    }
+  }
+
+  const handleCreateRequest = async (e) => {
+    e.preventDefault()
+    try {
+      if (!user || user.isGuest) {
+        alert('Please log in to create a request')
+        return
+      }
+      
+      setSubmitting(true)
+      const requestData = {
+        title: formData.title,
+        description: formData.description,
+        category: formData.category,
+        priority: formData.priority,
+        location: formData.location,
+        timeNeeded: formData.timeNeeded,
+        requester: user?.name || user?.email || 'Current User',
+        requesterId: user?.id || user?.sub || 'user_1',
+        email: user?.email,
+        distance: '0.5 mi', // Would be calculated from user location
+        coordinates: user?.coordinates || { lat: 51.0447, lng: -114.0719 },
+        skills: [],
+      }
+      
+      const newRequest = await requestsAPI.create(requestData)
+      setRequests(prev => [newRequest, ...prev])
+      setShowRequestForm(false)
+      setFormData({
+        title: '',
+        description: '',
+        category: '',
+        priority: 'Medium',
+        location: '',
+        timeNeeded: '1 hour',
+        image: null,
+      })
+      alert('Request created successfully!')
+    } catch (err) {
+      alert(err.message || 'Failed to create request')
+      console.error('Error creating request:', err)
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const handleDeleteRequest = async (requestId) => {
+    if (!window.confirm('Are you sure you want to delete this request?')) {
+      return
+    }
+    try {
+      setSubmitting(true)
+      await requestsAPI.delete(requestId)
+      setRequests(prev => prev.filter(r => r.id !== requestId))
+      if (selectedRequest && selectedRequest.id === requestId) {
+        setSelectedRequest(null)
+      }
+      alert('Request deleted successfully')
+    } catch (err) {
+      alert(err.message || 'Failed to delete request')
+      console.error('Error deleting request:', err)
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const handleCompleteRequest = async (requestId) => {
+    try {
+      setSubmitting(true)
+      const completionData = {
+        hoursSpent: 1,
+        notes: 'Completed successfully',
+      }
+      const updated = await requestsAPI.complete(requestId, completionData)
+      setRequests(prev => prev.map(r => r.id === updated.id ? updated : r))
+      if (selectedRequest && selectedRequest.id === requestId) {
+        setSelectedRequest(updated)
+      }
+      alert('Request marked as completed!')
+    } catch (err) {
+      alert(err.message || 'Failed to complete request')
+      console.error('Error completing request:', err)
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  // Filter requests client-side for additional filtering
+  const filteredRequests = requests.filter(request => {
+    const matchesSearch = searchQuery === '' || 
+      request.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      request.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      request.location?.toLowerCase().includes(searchQuery.toLowerCase())
+    
+    return matchesSearch
   })
-
-  const handleAcceptRequest = (requestId) => {
-    // Handle accepting a request
-    console.log('Accepting request:', requestId)
-    setSelectedRequest(helpRequests.find(r => r.id === requestId))
-  }
-
-  const handleViewDetails = (requestId) => {
-    setSelectedRequest(helpRequests.find(r => r.id === requestId))
-  }
 
   return (
     <div className="help-requests-container">
@@ -82,6 +245,7 @@ function HelpRequests() {
           <button 
             className="help-requests-create-btn"
             onClick={() => setShowRequestForm(true)}
+            disabled={submitting}
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
               <line x1="12" y1="5" x2="12" y2="19"/>
@@ -149,7 +313,14 @@ function HelpRequests() {
 
       {/* Results Count */}
       <div className="help-requests-results">
-        <span className="help-requests-count">{filteredRequests.length} request{filteredRequests.length !== 1 ? 's' : ''} found</span>
+        <span className="help-requests-count">
+          {loading ? 'Loading...' : `${filteredRequests.length} request${filteredRequests.length !== 1 ? 's' : ''} found`}
+        </span>
+        {error && (
+          <div className="help-requests-error" style={{ color: '#ef4444', fontSize: '14px', fontWeight: 600 }}>
+            {error}
+          </div>
+        )}
         <div className="help-requests-quick-filters">
           <button 
             className={`help-requests-quick-filter ${selectedPriority === 'Urgent' ? 'active' : ''}`}
@@ -184,88 +355,111 @@ function HelpRequests() {
       </div>
 
       {/* Content */}
-      {viewMode === 'list' ? (
+      {loading ? (
+        <div style={{ textAlign: 'center', padding: '60px 20px', color: 'rgba(0,0,0,0.6)' }}>
+          <div style={{ fontSize: '18px', fontWeight: 600 }}>Loading requests...</div>
+        </div>
+      ) : viewMode === 'list' ? (
         <div className="help-requests-list-view">
           <div className="help-requests-grid">
-            {filteredRequests.map(request => (
-              <div key={request.id} className="help-request-card">
-                <div className="help-request-card-header">
-                  <div className="help-request-category-badge">{request.category}</div>
-                  <div className={`help-request-priority-badge ${request.urgency}`}>
-                    {request.priority}
-                  </div>
-                </div>
-                <h3 className="help-request-card-title">{request.title}</h3>
-                <p className="help-request-card-description">{request.description}</p>
-                <div className="help-request-card-meta">
-                  <div className="help-request-meta-row">
-                    <div className="help-request-meta-item">
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-                        <circle cx="12" cy="7" r="4"/>
-                      </svg>
-                      <span>{request.requester}</span>
-                    </div>
-                    <div className="help-request-meta-item">
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
-                        <circle cx="12" cy="10" r="3"/>
-                      </svg>
-                      <span>{request.distance}</span>
-                    </div>
-                  </div>
-                  <div className="help-request-meta-row">
-                    <div className="help-request-meta-item">
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <circle cx="12" cy="12" r="10"/>
-                        <polyline points="12 6 12 12 16 14"/>
-                      </svg>
-                      <span>{request.time}</span>
-                    </div>
-                    <div className="help-request-meta-item">
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-                        <circle cx="9" cy="7" r="4"/>
-                      </svg>
-                      <span>{request.volunteerCount} volunteer{request.volunteerCount !== 1 ? 's' : ''}</span>
-                    </div>
-                  </div>
-                </div>
-                {request.skills && request.skills.length > 0 && (
-                  <div className="help-request-skills">
-                    {request.skills.map((skill, idx) => (
-                      <span key={idx} className="help-request-skill-tag">{skill}</span>
-                    ))}
-                  </div>
-                )}
-                {request.translated && (
-                  <div className="help-request-translation-badge">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <circle cx="12" cy="12" r="10"/>
-                      <line x1="2" y1="12" x2="22" y2="12"/>
-                      <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
-                    </svg>
-                    <span>Translated from {request.originalLanguage}</span>
-                  </div>
-                )}
-                <div className="help-request-card-actions">
-                  <button 
-                    className="help-request-view-btn"
-                    onClick={() => handleViewDetails(request.id)}
-                  >
-                    View Details
-                  </button>
-                  {request.status === 'Active' && (
-                    <button 
-                      className="help-request-accept-btn"
-                      onClick={() => handleAcceptRequest(request.id)}
-                    >
-                      Accept Request
-                    </button>
-                  )}
-                </div>
+            {filteredRequests.length === 0 ? (
+              <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '60px 20px', color: 'rgba(0,0,0,0.6)' }}>
+                <div style={{ fontSize: '18px', fontWeight: 600, marginBottom: '8px' }}>No requests found</div>
+                <div style={{ fontSize: '14px' }}>Try adjusting your filters or create a new request</div>
               </div>
-            ))}
+            ) : (
+              filteredRequests.map(request => (
+                <div key={request.id} className="help-request-card">
+                  <div className="help-request-card-header">
+                    <div className="help-request-category-badge">{request.category || 'General'}</div>
+                    <div className={`help-request-priority-badge ${(request.urgency || request.priority?.toLowerCase() || 'medium')}`}>
+                      {request.priority || 'Medium'}
+                    </div>
+                  </div>
+                  <h3 className="help-request-card-title">{request.title}</h3>
+                  <p className="help-request-card-description">{request.description}</p>
+                  <div className="help-request-card-meta">
+                    <div className="help-request-meta-row">
+                      <div className="help-request-meta-item">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                          <circle cx="12" cy="7" r="4"/>
+                        </svg>
+                        <span>{request.requester || 'Anonymous'}</span>
+                      </div>
+                      <div className="help-request-meta-item">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+                          <circle cx="12" cy="10" r="3"/>
+                        </svg>
+                        <span>{request.distance || 'N/A'}</span>
+                      </div>
+                    </div>
+                    <div className="help-request-meta-row">
+                      <div className="help-request-meta-item">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <circle cx="12" cy="12" r="10"/>
+                          <polyline points="12 6 12 12 16 14"/>
+                        </svg>
+                        <span>{request.time || 'Recently'}</span>
+                      </div>
+                      <div className="help-request-meta-item">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                          <circle cx="9" cy="7" r="4"/>
+                        </svg>
+                        <span>{request.volunteerCount || 0} volunteer{(request.volunteerCount || 0) !== 1 ? 's' : ''}</span>
+                      </div>
+                    </div>
+                  </div>
+                  {request.skills && request.skills.length > 0 && (
+                    <div className="help-request-skills">
+                      {request.skills.map((skill, idx) => (
+                        <span key={idx} className="help-request-skill-tag">{skill}</span>
+                      ))}
+                    </div>
+                  )}
+                  {request.translated && (
+                    <div className="help-request-translation-badge">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <circle cx="12" cy="12" r="10"/>
+                        <line x1="2" y1="12" x2="22" y2="12"/>
+                        <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+                      </svg>
+                      <span>Translated from {request.originalLanguage || 'another language'}</span>
+                    </div>
+                  )}
+                  <div className="help-request-card-actions">
+                    <button 
+                      className="help-request-view-btn"
+                      onClick={() => handleViewDetails(request.id)}
+                      disabled={submitting}
+                    >
+                      View Details
+                    </button>
+                    {request.status === 'Active' && (
+                      <button 
+                        className="help-request-accept-btn"
+                        onClick={() => handleAcceptRequest(request.id)}
+                        disabled={submitting}
+                      >
+                        {submitting ? 'Processing...' : 'Accept Request'}
+                      </button>
+                    )}
+                    {request.requesterId === user?.id && request.status !== 'Completed' && (
+                      <button 
+                        className="help-request-view-btn"
+                        onClick={() => handleDeleteRequest(request.id)}
+                        disabled={submitting}
+                        style={{ marginTop: '8px', background: '#ef4444', color: '#fff' }}
+                      >
+                        Delete
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
       ) : (
@@ -308,10 +502,10 @@ function HelpRequests() {
                   className="help-request-map-item"
                   onClick={() => handleViewDetails(request.id)}
                 >
-                  <div className={`help-request-map-priority ${request.urgency}`}></div>
+                  <div className={`help-request-map-priority ${(request.urgency || request.priority?.toLowerCase() || 'medium')}`}></div>
                   <div className="help-request-map-content">
                     <h4>{request.title}</h4>
-                    <p>{request.distance} away</p>
+                    <p>{request.distance || 'N/A'} away</p>
                   </div>
                 </div>
               ))}
@@ -327,13 +521,13 @@ function HelpRequests() {
             <div className="help-request-modal-header">
               <div>
                 <div className="help-request-modal-badges">
-                  <span className="help-request-modal-category">{selectedRequest.category}</span>
-                  <span className={`help-request-modal-priority ${selectedRequest.urgency}`}>
-                    {selectedRequest.priority} Priority
+                  <span className="help-request-modal-category">{selectedRequest.category || 'General'}</span>
+                  <span className={`help-request-modal-priority ${(selectedRequest.urgency || selectedRequest.priority?.toLowerCase() || 'medium')}`}>
+                    {selectedRequest.priority || 'Medium'} Priority
                   </span>
                 </div>
                 <h2 className="help-request-modal-title">{selectedRequest.title}</h2>
-                <p className="help-request-modal-requester">Requested by {selectedRequest.requester}</p>
+                <p className="help-request-modal-requester">Requested by {selectedRequest.requester || 'Anonymous'}</p>
               </div>
               <button 
                 className="help-request-modal-close"
@@ -358,7 +552,7 @@ function HelpRequests() {
                   </svg>
                   <div>
                     <div className="help-request-modal-detail-label">Location</div>
-                    <div className="help-request-modal-detail-value">{selectedRequest.location} • {selectedRequest.distance} away</div>
+                    <div className="help-request-modal-detail-value">{selectedRequest.location || 'N/A'} • {selectedRequest.distance || 'N/A'} away</div>
                   </div>
                 </div>
                 <div className="help-request-modal-detail-item">
@@ -368,7 +562,7 @@ function HelpRequests() {
                   </svg>
                   <div>
                     <div className="help-request-modal-detail-label">Time Needed</div>
-                    <div className="help-request-modal-detail-value">{selectedRequest.timeNeeded}</div>
+                    <div className="help-request-modal-detail-value">{selectedRequest.timeNeeded || 'N/A'}</div>
                   </div>
                 </div>
                 <div className="help-request-modal-detail-item">
@@ -378,7 +572,7 @@ function HelpRequests() {
                   </svg>
                   <div>
                     <div className="help-request-modal-detail-label">Posted</div>
-                    <div className="help-request-modal-detail-value">{selectedRequest.time}</div>
+                    <div className="help-request-modal-detail-value">{selectedRequest.time || 'Recently'}</div>
                   </div>
                 </div>
                 <div className="help-request-modal-detail-item">
@@ -388,7 +582,7 @@ function HelpRequests() {
                   </svg>
                   <div>
                     <div className="help-request-modal-detail-label">Volunteers</div>
-                    <div className="help-request-modal-detail-value">{selectedRequest.volunteerCount} volunteer{selectedRequest.volunteerCount !== 1 ? 's' : ''} interested</div>
+                    <div className="help-request-modal-detail-value">{selectedRequest.volunteerCount || 0} volunteer{(selectedRequest.volunteerCount || 0) !== 1 ? 's' : ''} interested</div>
                   </div>
                 </div>
               </div>
@@ -411,15 +605,34 @@ function HelpRequests() {
                   </svg>
                   <div>
                     <div className="help-request-modal-ai-label">AI Analysis</div>
-                    <div className="help-request-modal-ai-value">Categorized as {selectedRequest.aiCategory} • {selectedRequest.aiPriority} Priority</div>
+                    <div className="help-request-modal-ai-value">Categorized as {selectedRequest.aiCategory} • {selectedRequest.aiPriority || selectedRequest.priority} Priority</div>
                   </div>
                 </div>
               )}
             </div>
             <div className="help-request-modal-footer">
               {selectedRequest.status === 'Active' && (
-                <button className="help-request-modal-accept-btn">
-                  Accept This Request
+                <button 
+                  className="help-request-modal-accept-btn"
+                  onClick={() => {
+                    handleAcceptRequest(selectedRequest.id)
+                    setSelectedRequest(null)
+                  }}
+                  disabled={submitting}
+                >
+                  {submitting ? 'Processing...' : 'Accept This Request'}
+                </button>
+              )}
+              {selectedRequest.requesterId === user?.id && selectedRequest.status === 'Assigned' && (
+                <button 
+                  className="help-request-modal-accept-btn"
+                  onClick={() => {
+                    handleCompleteRequest(selectedRequest.id)
+                    setSelectedRequest(null)
+                  }}
+                  disabled={submitting}
+                >
+                  {submitting ? 'Processing...' : 'Mark as Completed'}
                 </button>
               )}
               <button 
@@ -435,7 +648,7 @@ function HelpRequests() {
 
       {/* Create Request Form Modal */}
       {showRequestForm && (
-        <div className="help-request-modal-overlay" onClick={() => setShowRequestForm(false)}>
+        <div className="help-request-modal-overlay" onClick={() => !submitting && setShowRequestForm(false)}>
           <div className="help-request-modal-content create-request-modal" onClick={(e) => e.stopPropagation()}>
             <div className="help-request-modal-header">
               <div>
@@ -444,7 +657,8 @@ function HelpRequests() {
               </div>
               <button 
                 className="help-request-modal-close"
-                onClick={() => setShowRequestForm(false)}
+                onClick={() => !submitting && setShowRequestForm(false)}
+                disabled={submitting}
               >
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                   <line x1="18" y1="6" x2="6" y2="18"/>
@@ -453,13 +667,16 @@ function HelpRequests() {
               </button>
             </div>
             <div className="help-request-modal-body">
-              <form className="help-request-form">
+              <form className="help-request-form" onSubmit={handleCreateRequest}>
                 <div className="help-request-form-group">
                   <label>Title *</label>
                   <input 
                     type="text" 
                     placeholder="Brief description of what you need"
+                    value={formData.title}
+                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                     required
+                    disabled={submitting}
                   />
                 </div>
                 <div className="help-request-form-group">
@@ -467,13 +684,21 @@ function HelpRequests() {
                   <textarea 
                     rows="4" 
                     placeholder="Tell us more about your request..."
+                    value={formData.description}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                     required
+                    disabled={submitting}
                   ></textarea>
                 </div>
                 <div className="help-request-form-row">
                   <div className="help-request-form-group">
                     <label>Category *</label>
-                    <select required>
+                    <select 
+                      value={formData.category}
+                      onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                      required
+                      disabled={submitting}
+                    >
                       <option value="">Select category</option>
                       <option>Accessibility</option>
                       <option>Medical</option>
@@ -486,7 +711,11 @@ function HelpRequests() {
                   </div>
                   <div className="help-request-form-group">
                     <label>Priority</label>
-                    <select>
+                    <select 
+                      value={formData.priority}
+                      onChange={(e) => setFormData({ ...formData, priority: e.target.value })}
+                      disabled={submitting}
+                    >
                       <option>Low</option>
                       <option>Medium</option>
                       <option>High</option>
@@ -499,12 +728,19 @@ function HelpRequests() {
                   <input 
                     type="text" 
                     placeholder="Your address or area"
+                    value={formData.location}
+                    onChange={(e) => setFormData({ ...formData, location: e.target.value })}
                     required
+                    disabled={submitting}
                   />
                 </div>
                 <div className="help-request-form-group">
                   <label>Estimated Time Needed</label>
-                  <select>
+                  <select 
+                    value={formData.timeNeeded}
+                    onChange={(e) => setFormData({ ...formData, timeNeeded: e.target.value })}
+                    disabled={submitting}
+                  >
                     <option>15-30 min</option>
                     <option>30-45 min</option>
                     <option>1 hour</option>
@@ -528,11 +764,16 @@ function HelpRequests() {
                     type="button" 
                     className="help-request-form-cancel-btn"
                     onClick={() => setShowRequestForm(false)}
+                    disabled={submitting}
                   >
                     Cancel
                   </button>
-                  <button type="submit" className="help-request-form-submit-btn">
-                    Submit Request
+                  <button 
+                    type="submit" 
+                    className="help-request-form-submit-btn"
+                    disabled={submitting}
+                  >
+                    {submitting ? 'Creating...' : 'Submit Request'}
                   </button>
                 </div>
               </form>
@@ -545,4 +786,3 @@ function HelpRequests() {
 }
 
 export default HelpRequests
-

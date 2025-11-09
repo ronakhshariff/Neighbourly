@@ -1,28 +1,76 @@
-import React, { useState } from 'react'
-import { helpRequests, cityRequests } from '../data/mockData'
+import React, { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { cityAPI } from '../services/api'
 import './CityDashboard.css'
 
 function CityDashboard() {
+  const navigate = useNavigate()
   const [selectedTimeframe, setSelectedTimeframe] = useState('7d')
+  const [stats, setStats] = useState({
+    totalRequests: 0,
+    activeRequests: 0,
+    completedToday: 0,
+    avgResponseTime: '0 min',
+    verifiedWorkers: 0,
+    pendingVerifications: 0
+  })
+  const [recentRequests, setRecentRequests] = useState([])
+  const [pendingVerifications, setPendingVerifications] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [submitting, setSubmitting] = useState(false)
 
-  // Mock data - using shared data
-  const stats = {
-    totalRequests: 1247,
-    activeRequests: helpRequests.filter(r => r.status === 'Active').length,
-    completedToday: 18,
-    avgResponseTime: '4.2 min',
-    verifiedWorkers: 156,
-    pendingVerifications: 3
+  useEffect(() => {
+    loadDashboardData()
+    
+    // Real-time polling - update every 10 seconds
+    const interval = setInterval(() => {
+      loadDashboardData()
+    }, 10000)
+    
+    return () => clearInterval(interval)
+  }, [selectedTimeframe])
+
+  const loadDashboardData = async () => {
+    try {
+      setLoading(true)
+      const [statsData, requestsData, verificationsData] = await Promise.all([
+        cityAPI.getDashboardStats(selectedTimeframe),
+        cityAPI.getRecentRequests(10),
+        cityAPI.getPendingVerifications(),
+      ])
+      
+      setStats(statsData)
+      setRecentRequests(requestsData.requests || [])
+      setPendingVerifications(verificationsData.verifications || [])
+    } catch (error) {
+      console.error('Error loading city dashboard data:', error)
+    } finally {
+      setLoading(false)
+    }
   }
 
-  // Use shared data
-  const recentRequests = cityRequests
+  const handleVerifyWorker = async (workerId, decision) => {
+    try {
+      setSubmitting(true)
+      await cityAPI.verifyWorker(workerId, decision)
+      alert(`Worker ${decision === 'approved' ? 'approved' : 'rejected'} successfully`)
+      await loadDashboardData()
+    } catch (error) {
+      alert(error.message || 'Failed to verify worker')
+      console.error('Error verifying worker:', error)
+    } finally {
+      setSubmitting(false)
+    }
+  }
 
-  const pendingVerifications = [
-    { id: 1, name: 'Sarah Johnson', role: 'City Worker', submitted: '2 hours ago', documents: 3 },
-    { id: 2, name: 'Michael Chen', role: 'Emergency Responder', submitted: '5 hours ago', documents: 2 },
-    { id: 3, name: 'Emily Rodriguez', role: 'City Planner', submitted: '1 day ago', documents: 4 }
-  ]
+  const handleViewAllRequests = () => {
+    navigate('/dashboard/city/requests')
+  }
+
+  const handleViewFullMap = () => {
+    navigate('/dashboard/city/requests')
+    // Could set view mode to map here
+  }
 
   return (
     <div className="city-dashboard">
@@ -63,7 +111,7 @@ function CityDashboard() {
           </div>
           <div className="city-stat-content">
             <div className="city-stat-label">Total Requests</div>
-            <div className="city-stat-value">{stats.totalRequests.toLocaleString()}</div>
+            <div className="city-stat-value">{loading ? '...' : stats.totalRequests.toLocaleString()}</div>
             <div className="city-stat-change positive">+12% from last week</div>
           </div>
         </div>
@@ -106,7 +154,7 @@ function CityDashboard() {
           </div>
           <div className="city-stat-content">
             <div className="city-stat-label">Pending Verifications</div>
-            <div className="city-stat-value">{stats.pendingVerifications}</div>
+            <div className="city-stat-value">{loading ? '...' : stats.pendingVerifications}</div>
             <div className="city-stat-change">Requires attention</div>
           </div>
         </div>
@@ -117,10 +165,19 @@ function CityDashboard() {
         <div className="city-dashboard-card">
           <div className="city-card-header">
             <h2 className="city-card-title">Recent Help Requests</h2>
-            <button className="city-card-action">View All</button>
+            <button className="city-card-action" onClick={handleViewAllRequests}>View All</button>
           </div>
           <div className="city-requests-list">
-            {recentRequests.map(request => (
+            {loading ? (
+              <div style={{ textAlign: 'center', padding: '40px 20px', color: 'rgba(0,0,0,0.6)' }}>
+                <div style={{ fontSize: '14px', fontWeight: 600 }}>Loading requests...</div>
+              </div>
+            ) : recentRequests.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '40px 20px', color: 'rgba(0,0,0,0.6)' }}>
+                <div style={{ fontSize: '14px', fontWeight: 600 }}>No recent requests</div>
+              </div>
+            ) : (
+              recentRequests.map(request => (
               <div key={request.id} className="city-request-item">
                 <div className="city-request-type">
                   <div className={`city-request-priority ${request.priority.toLowerCase()}`}>
@@ -135,7 +192,8 @@ function CityDashboard() {
                   <span className="city-request-time">{request.time}</span>
                 </div>
               </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
 
@@ -146,7 +204,16 @@ function CityDashboard() {
             <span className="city-card-badge">{pendingVerifications.length}</span>
           </div>
           <div className="city-verifications-list">
-            {pendingVerifications.map(verification => (
+            {loading ? (
+              <div style={{ textAlign: 'center', padding: '40px 20px', color: 'rgba(0,0,0,0.6)' }}>
+                <div style={{ fontSize: '14px', fontWeight: 600 }}>Loading verifications...</div>
+              </div>
+            ) : pendingVerifications.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '40px 20px', color: 'rgba(0,0,0,0.6)' }}>
+                <div style={{ fontSize: '14px', fontWeight: 600 }}>No pending verifications</div>
+              </div>
+            ) : (
+              pendingVerifications.map(verification => (
               <div key={verification.id} className="city-verification-item">
                 <div className="city-verification-avatar">
                   <span>{verification.name.charAt(0)}</span>
@@ -161,11 +228,24 @@ function CityDashboard() {
                   </div>
                 </div>
                 <div className="city-verification-actions">
-                  <button className="city-btn-approve">Approve</button>
-                  <button className="city-btn-review">Review</button>
+                  <button 
+                    className="city-btn-approve"
+                    onClick={() => handleVerifyWorker(verification.id, 'approved')}
+                    disabled={submitting}
+                  >
+                    {submitting ? 'Processing...' : 'Approve'}
+                  </button>
+                  <button 
+                    className="city-btn-review"
+                    onClick={() => alert('Review feature - Worker ID: ' + verification.id)}
+                    disabled={submitting}
+                  >
+                    Review
+                  </button>
                 </div>
               </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
       </div>
@@ -174,7 +254,7 @@ function CityDashboard() {
       <div className="city-dashboard-card full-width">
         <div className="city-card-header">
           <h2 className="city-card-title">Request Heatmap</h2>
-          <button className="city-card-action">View Full Map</button>
+          <button className="city-card-action" onClick={handleViewFullMap}>View Full Map</button>
         </div>
         <div className="city-heatmap-preview">
           <div className="city-heatmap-placeholder">
@@ -183,7 +263,7 @@ function CityDashboard() {
               <circle cx="12" cy="10" r="3"/>
             </svg>
             <p>Interactive map showing request density and hotspots</p>
-            <button className="city-btn-primary">Open Map View</button>
+            <button className="city-btn-primary" onClick={handleViewFullMap}>Open Map View</button>
           </div>
         </div>
       </div>

@@ -1,25 +1,29 @@
 import React, { useState } from 'react'
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom'
+import { useApp } from '../context/AppContext'
 import './DashboardLayout.css'
 import burrowlyLogo from '../neighbourly_logo.PNG'
 
 function DashboardLayout() {
   const location = useLocation()
   const navigate = useNavigate()
+  const { user, logout } = useApp()
   const [showUserMenu, setShowUserMenu] = useState(false)
   const [showA11ySettings, setShowA11ySettings] = useState(false)
 
-  // Mock user data - replace with actual auth
-  const user = {
-    name: 'John Doe',
-    email: 'john@example.com',
-    role: location.pathname.includes('/city') ? 'city' : 'user',
-    avatar: null
+  const handleLogout = async () => {
+    const result = await logout()
+    if (result.success) {
+      navigate('/')
+    }
   }
 
-  const handleLogout = () => {
-    // Handle logout
-    navigate('/')
+  // Get user display info
+  const displayUser = user || {
+    name: 'Guest User',
+    email: 'guest@example.com',
+    role: location.pathname.includes('/city') ? 'city' : 'user',
+    avatar: null
   }
 
   const isCityView = location.pathname.includes('/city')
@@ -80,13 +84,13 @@ function DashboardLayout() {
                 onClick={() => setShowUserMenu(!showUserMenu)}
               >
                 <div className="dashboard-user-avatar">
-                  {user.avatar ? (
-                    <img src={user.avatar} alt={user.name} />
+                  {displayUser.avatar ? (
+                    <img src={displayUser.avatar} alt={displayUser.name} />
                   ) : (
-                    <span>{user.name.charAt(0)}</span>
+                    <span>{displayUser.name.charAt(0)}</span>
                   )}
                 </div>
-                <span className="dashboard-user-name">{user.name}</span>
+                <span className="dashboard-user-name">{displayUser.name}</span>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <polyline points="6 9 12 15 18 9"/>
                 </svg>
@@ -96,15 +100,15 @@ function DashboardLayout() {
                 <div className="dashboard-user-dropdown">
                   <div className="dashboard-user-dropdown-header">
                     <div className="dashboard-user-dropdown-avatar">
-                      {user.avatar ? (
-                        <img src={user.avatar} alt={user.name} />
+                      {displayUser.avatar ? (
+                        <img src={displayUser.avatar} alt={displayUser.name} />
                       ) : (
-                        <span>{user.name.charAt(0)}</span>
+                        <span>{displayUser.name.charAt(0)}</span>
                       )}
                     </div>
                     <div>
-                      <div className="dashboard-user-dropdown-name">{user.name}</div>
-                      <div className="dashboard-user-dropdown-email">{user.email}</div>
+                      <div className="dashboard-user-dropdown-name">{displayUser.name}</div>
+                      <div className="dashboard-user-dropdown-email">{displayUser.email}</div>
                     </div>
                   </div>
                   <div className="dashboard-user-dropdown-divider"></div>
