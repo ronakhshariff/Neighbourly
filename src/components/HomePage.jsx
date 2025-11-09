@@ -14,6 +14,7 @@ function HomePage() {
   const [showSignup, setShowSignup] = useState(false)
   const [showChat, setShowChat] = useState(false)
   const [showA11ySettings, setShowA11ySettings] = useState(false)
+  const [showContact, setShowContact] = useState(false)
   const [chatMessages, setChatMessages] = useState([
     {
       id: 1,
@@ -228,11 +229,76 @@ function HomePage() {
             </div>
 
             <nav className="nav-links">
-              <a href="#home" className="nav-link">HOME</a>
-              <a href="#about" className="nav-link">ABOUT</a>
-              <a href="#how-it-works" className="nav-link">HOW IT WORKS</a>
-              <a href="#community" className="nav-link">COMMUNITY</a>
-              <a href="#contact" className="nav-link">CONTACT</a>
+              <a 
+                href="#home" 
+                className="nav-link"
+                onClick={(e) => {
+                  e.preventDefault()
+                  window.scrollTo({ top: 0, behavior: 'smooth' })
+                }}
+              >
+                HOME
+              </a>
+              <a 
+                href="#about" 
+                className="nav-link"
+                onClick={(e) => {
+                  e.preventDefault()
+                  const element = document.getElementById('about')
+                  if (element) {
+                    const offset = 80 // Account for fixed navbar
+                    const elementPosition = element.getBoundingClientRect().top + window.pageYOffset
+                    window.scrollTo({ top: elementPosition - offset, behavior: 'smooth' })
+                  }
+                }}
+              >
+                ABOUT
+              </a>
+              <a 
+                href="#how-it-works" 
+                className="nav-link"
+                onClick={(e) => {
+                  e.preventDefault()
+                  const element = document.getElementById('how-it-works')
+                  if (element) {
+                    const offset = 80 // Account for fixed navbar
+                    const elementPosition = element.getBoundingClientRect().top + window.pageYOffset
+                    window.scrollTo({ top: elementPosition - offset, behavior: 'smooth' })
+                  }
+                }}
+              >
+                HOW IT WORKS
+              </a>
+              <a 
+                href="#community" 
+                className="nav-link"
+                onClick={(e) => {
+                  e.preventDefault()
+                  const element = document.getElementById('community')
+                  if (element) {
+                    const offset = 80 // Account for fixed navbar
+                    const elementPosition = element.getBoundingClientRect().top + window.pageYOffset
+                    window.scrollTo({ top: elementPosition - offset, behavior: 'smooth' })
+                  }
+                }}
+              >
+                COMMUNITY
+              </a>
+              <a 
+                href="#contact" 
+                className="nav-link"
+                onClick={(e) => {
+                  e.preventDefault()
+                  const element = document.getElementById('contact')
+                  if (element) {
+                    const offset = 80 // Account for fixed navbar
+                    const elementPosition = element.getBoundingClientRect().top + window.pageYOffset
+                    window.scrollTo({ top: elementPosition - offset, behavior: 'smooth' })
+                  }
+                }}
+              >
+                CONTACT
+              </a>
             </nav>
 
             <div className="search-container">
@@ -854,7 +920,7 @@ function HomePage() {
         </div>
       </section>
 
-      <section className="content-section alt">
+      <section id="how-it-works" className="content-section alt">
         <div className="section-container">
           <h2 className="section-heading">How It Works</h2>
           <div className="features-grid">
@@ -882,16 +948,216 @@ function HomePage() {
         </div>
       </section>
 
-      <section id="contact" className="content-section">
-        <div className="section-container">
-          <h2 className="section-heading">Get In Touch</h2>
-          <p className="section-text">
-            Ready to build a stronger community? Join Burrowly today and be part of creating 
-            safer, more inclusive, and resilient neighborhoods.
-          </p>
-          <Link to="/dashboard/user" className="cta-button" onClick={handleGetStarted}>Get Started</Link>
+      {/* Reviews Section / Community */}
+      <section id="community" className="reviews-section">
+        <div className="reviews-container">
+          <div className="reviews-header">
+            <div className="reviews-header-content">
+              <h2 className="reviews-title">Trusted by Our Community</h2>
+              <p className="reviews-subtitle">Join <span className="reviews-count">12,847</span> neighbors building stronger communities together</p>
+            </div>
+            <div className="reviews-stats">
+              <div className="review-stat-item">
+                <div className="review-stat-number">4.9</div>
+                <div className="review-stat-label">Average Rating</div>
+              </div>
+              <div className="review-stat-item">
+                <div className="review-stat-number">98%</div>
+                <div className="review-stat-label">Satisfaction Rate</div>
+              </div>
+            </div>
+          </div>
+
+          <div className="reviews-grid">
+            <div className="review-card">
+              <div className="review-card-header">
+                <div className="review-avatar">
+                  <div className="review-avatar-initial">SM</div>
+                </div>
+                <div className="review-author-info">
+                  <div className="review-author-name">Sarah Martinez</div>
+                  <div className="review-author-location">Calgary, AB</div>
+                </div>
+                <div className="review-rating">
+                  {[...Array(5)].map((_, i) => (
+                    <svg key={i} width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="2">
+                      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                    </svg>
+                  ))}
+                </div>
+              </div>
+              <div className="review-content">
+                <p className="review-text">
+                  "Burrowly has completely transformed how our neighborhood supports each other. When my elderly mother needed help during the snowstorm, three neighbors responded within minutes. This platform truly brings communities together."
+                </p>
+                <div className="review-meta">
+                  <span className="review-category">Elderly Care</span>
+                  <span className="review-date">2 weeks ago</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="review-card featured">
+              <div className="review-badge">Most Helpful</div>
+              <div className="review-card-header">
+                <div className="review-avatar">
+                  <div className="review-avatar-initial">JD</div>
+                </div>
+                <div className="review-author-info">
+                  <div className="review-author-name">James Davidson</div>
+                  <div className="review-author-location">Calgary, AB</div>
+                </div>
+                <div className="review-rating">
+                  {[...Array(5)].map((_, i) => (
+                    <svg key={i} width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="2">
+                      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                    </svg>
+                  ))}
+                </div>
+              </div>
+              <div className="review-content">
+                <p className="review-text">
+                  "As someone who uses a wheelchair, finding accessible businesses was always a challenge. The Roadmap feature shows me exactly which places are accessible, saving me so much time and frustration. This is exactly what our city needed."
+                </p>
+                <div className="review-meta">
+                  <span className="review-category">Accessibility</span>
+                  <span className="review-date">1 month ago</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="review-card">
+              <div className="review-card-header">
+                <div className="review-avatar">
+                  <div className="review-avatar-initial">PL</div>
+                </div>
+                <div className="review-author-info">
+                  <div className="review-author-name">Priya Lakshmi</div>
+                  <div className="review-author-location">Calgary, AB</div>
+                </div>
+                <div className="review-rating">
+                  {[...Array(5)].map((_, i) => (
+                    <svg key={i} width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="2">
+                      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                    </svg>
+                  ))}
+                </div>
+              </div>
+              <div className="review-content">
+                <p className="review-text">
+                  "I've volunteered for 15+ requests through Burrowly. The real-time updates and easy communication make it so simple to help neighbors. It's rewarding to see the direct impact we're making in our community."
+                </p>
+                <div className="review-meta">
+                  <span className="review-category">Volunteering</span>
+                  <span className="review-date">3 weeks ago</span>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
+
+      <section id="contact" className="content-section">
+        <div className="section-container">
+          <div className="contact-actions">
+            <button className="cta-button contact-button" onClick={() => setShowContact(true)}>Contact Us</button>
+          </div>
+        </div>
+      </section>
+
+      {/* Contact Modal */}
+      {showContact && (
+        <div className="modal-overlay" onClick={() => setShowContact(false)}>
+          <div className="modal-content contact-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-bg-orb modal-orb-1"></div>
+            <div className="modal-bg-orb modal-orb-2"></div>
+            <div className="modal-bg-orb modal-orb-3"></div>
+
+            <button className="modal-close" onClick={() => setShowContact(false)} aria-label="Close">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </button>
+
+            <div className="contact-modal-header">
+              <div className="contact-modal-header-glow"></div>
+              <div className="contact-modal-icon">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                </svg>
+              </div>
+              <h2 className="contact-modal-title">Get In Touch</h2>
+              <p className="contact-modal-subtitle">We'd love to hear from you. Reach out to us through any of these channels.</p>
+            </div>
+
+            <div className="contact-modal-body">
+              <div className="contact-info-grid">
+                <div className="contact-info-card">
+                  <div className="contact-info-icon email">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                      <polyline points="22,6 12,13 2,6"/>
+                    </svg>
+                  </div>
+                  <div className="contact-info-content">
+                    <h3 className="contact-info-label">Email</h3>
+                    <a href="mailto:ronakhjr@gmail.com" className="contact-info-value">
+                      ronakhjr@gmail.com
+                    </a>
+                    <button 
+                      className="contact-copy-btn"
+                      onClick={() => {
+                        navigator.clipboard.writeText('ronakhjr@gmail.com')
+                        alert('Email copied to clipboard!')
+                      }}
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                      </svg>
+                      Copy
+                    </button>
+                  </div>
+                </div>
+
+                <div className="contact-info-card">
+                  <div className="contact-info-icon phone">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
+                    </svg>
+                  </div>
+                  <div className="contact-info-content">
+                    <h3 className="contact-info-label">Phone</h3>
+                    <a href="tel:5879715138" className="contact-info-value">
+                      (587) 971-5138
+                    </a>
+                    <button 
+                      className="contact-copy-btn"
+                      onClick={() => {
+                        navigator.clipboard.writeText('587-971-5138')
+                        alert('Phone number copied to clipboard!')
+                      }}
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                      </svg>
+                      Copy
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="contact-modal-footer">
+                <p className="contact-footer-text">
+                  We typically respond within 24 hours. For urgent matters, please call us directly.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <footer className="footer">
         <div className="footer-container">
