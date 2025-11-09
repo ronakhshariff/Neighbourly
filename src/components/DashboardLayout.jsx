@@ -12,9 +12,28 @@ function DashboardLayout() {
   const [showA11ySettings, setShowA11ySettings] = useState(false)
 
   const handleLogout = async () => {
-    const result = await logout()
-    if (result.success) {
-      navigate('/')
+    try {
+      // Clear all auth data
+      localStorage.clear()
+      sessionStorage.clear()
+      
+      // Logout from Firebase
+      const result = await logout()
+      
+      // Navigate to home page
+      navigate('/', { replace: true })
+      
+      // Force page reload to clear all state and ensure clean logout
+      setTimeout(() => {
+        window.location.reload()
+      }, 100)
+    } catch (error) {
+      console.error('Error logging out:', error)
+      // Even if logout fails, clear storage and redirect
+      localStorage.clear()
+      sessionStorage.clear()
+      navigate('/', { replace: true })
+      window.location.reload()
     }
   }
 

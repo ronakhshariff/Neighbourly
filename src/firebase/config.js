@@ -1,7 +1,7 @@
 // Firebase configuration
 // Replace these with your actual Firebase config values
 import { initializeApp } from 'firebase/app'
-import { getAuth } from 'firebase/auth'
+import { getAuth, setPersistence, browserSessionPersistence } from 'firebase/auth'
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "your-api-key",
@@ -17,5 +17,13 @@ const app = initializeApp(firebaseConfig)
 
 // Initialize Firebase Authentication and get a reference to the service
 export const auth = getAuth(app)
+
+// Set persistence to session-only so users must log in each time they open the app
+// This ensures authentication doesn't persist across browser sessions
+// Users will need to log in again when they close and reopen the browser
+setPersistence(auth, browserSessionPersistence).catch((error) => {
+  console.error('Error setting auth persistence:', error)
+})
+
 export default app
 

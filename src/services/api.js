@@ -5,8 +5,10 @@ import mockBackend from './mockBackend'
 import { api as realApi } from '../api'
 import { API_BASE } from '../config'
 
-// Use real backend by default if API_BASE is set, otherwise use mock
-const USE_MOCK_BACKEND = import.meta.env.VITE_USE_MOCK === 'true' || (!import.meta.env.VITE_API_BASE && !API_BASE)
+// Use mock backend by default in development
+// Set VITE_USE_MOCK=false to use real API (requires VITE_API_BASE to be set)
+// Set VITE_USE_MOCK=true to force mock backend
+const USE_MOCK_BACKEND = import.meta.env.VITE_USE_MOCK !== 'false'
 
 // Helper function to get OIDC token (from Mazen's api.js)
 function getToken() {
@@ -78,7 +80,12 @@ export const authAPI = {
   login: async (email, password) => {
     if (USE_MOCK_BACKEND) {
       const response = await mockBackend.login(email, password)
+      // Store in sessionStorage (session-only) for security
+      sessionStorage.setItem('currentUserId', response.user.id)
+      sessionStorage.setItem('firebase_user_id', response.user.id)
+      // Also store in localStorage as backup
       localStorage.setItem('currentUserId', response.user.id)
+      localStorage.setItem('firebase_user_id', response.user.id)
       return response
     }
     return apiCall('/auth/login', {
@@ -90,7 +97,12 @@ export const authAPI = {
   signup: async (userData) => {
     if (USE_MOCK_BACKEND) {
       const response = await mockBackend.signup(userData)
+      // Store in sessionStorage (session-only) for security
+      sessionStorage.setItem('currentUserId', response.user.id)
+      sessionStorage.setItem('firebase_user_id', response.user.id)
+      // Also store in localStorage as backup
       localStorage.setItem('currentUserId', response.user.id)
+      localStorage.setItem('firebase_user_id', response.user.id)
       return response
     }
     return apiCall('/auth/signup', {
@@ -108,11 +120,26 @@ export const authAPI = {
 
   getCurrentUser: async () => {
     if (USE_MOCK_BACKEND) {
+      // Check sessionStorage first (session-only), then localStorage as fallback
+      const userId = sessionStorage.getItem('currentUserId') || 
+                     sessionStorage.getItem('firebase_user_id') ||
+                     localStorage.getItem('currentUserId') || 
+                     localStorage.getItem('firebase_user_id')
+      if (userId && userId !== 'guest') {
+        return mockBackend.getCurrentUser(userId)
+      }
       return mockBackend.getCurrentUser()
     }
     try {
       return await realApi.getCurrentUser()
     } catch (error) {
+      const userId = sessionStorage.getItem('currentUserId') || 
+                     sessionStorage.getItem('firebase_user_id') ||
+                     localStorage.getItem('currentUserId') || 
+                     localStorage.getItem('firebase_user_id')
+      if (userId && userId !== 'guest') {
+        return mockBackend.getCurrentUser(userId)
+      }
       return mockBackend.getCurrentUser()
     }
   },
@@ -161,12 +188,20 @@ export const requestsAPI = {
 
   create: async (requestData) => {
     if (USE_MOCK_BACKEND) {
-      return mockBackend.createRequest(requestData)
+      const userId = sessionStorage.getItem('currentUserId') || sessionStorage.getItem('firebase_user_id') || localStorage.getItem('currentUserId') || localStorage.getItem('firebase_user_id')
+      if (!userId) {
+        throw new Error('User must be logged in to create requests')
+      }
+      return mockBackend.createRequest(userId, requestData)
     }
     try {
       return await realApi.createRequest(requestData)
     } catch (error) {
-      return mockBackend.createRequest(requestData)
+      const userId = sessionStorage.getItem('currentUserId') || sessionStorage.getItem('firebase_user_id') || localStorage.getItem('currentUserId') || localStorage.getItem('firebase_user_id')
+      if (!userId) {
+        throw new Error('User must be logged in to create requests')
+      }
+      return mockBackend.createRequest(userId, requestData)
     }
   },
 
@@ -191,18 +226,30 @@ export const requestsAPI = {
 
   accept: async (id) => {
     if (USE_MOCK_BACKEND) {
-      return mockBackend.acceptRequest(id)
+      const userId = sessionStorage.getItem('currentUserId') || sessionStorage.getItem('firebase_user_id') || localStorage.getItem('currentUserId') || localStorage.getItem('firebase_user_id')
+      if (!userId) {
+        throw new Error('User must be logged in to accept requests')
+      }
+      return mockBackend.acceptRequest(id, userId)
     }
     try {
       return await realApi.acceptRequest(id)
     } catch (error) {
-      return mockBackend.acceptRequest(id)
+      const userId = sessionStorage.getItem('currentUserId') || sessionStorage.getItem('firebase_user_id') || localStorage.getItem('currentUserId') || localStorage.getItem('firebase_user_id')
+      if (!userId) {
+        throw new Error('User must be logged in to accept requests')
+      }
+      return mockBackend.acceptRequest(id, userId)
     }
   },
 
   complete: async (id, completionData) => {
     if (USE_MOCK_BACKEND) {
-      return mockBackend.completeRequest(id, completionData)
+      const userId = sessionStorage.getItem('currentUserId') || sessionStorage.getItem('firebase_user_id') || localStorage.getItem('currentUserId') || localStorage.getItem('firebase_user_id')
+      if (!userId) {
+        throw new Error('User must be logged in to complete requests')
+      }
+      return mockBackend.completeRequest(id, userId, completionData?.rating, completionData?.feedback)
     }
     return apiCall(`/requests/${id}/complete`, {
       method: 'POST',
@@ -221,7 +268,11 @@ export const requestsAPI = {
 
   getMyRequests: async () => {
     if (USE_MOCK_BACKEND) {
-      return mockBackend.getMyRequests()
+      const userId = sessionStorage.getItem('currentUserId') || sessionStorage.getItem('firebase_user_id') || localStorage.getItem('currentUserId') || localStorage.getItem('firebase_user_id')
+      if (!userId) {
+        return { requests: [] }
+      }
+      return mockBackend.getMyRequests(userId)
     }
     return apiCall('/requests/my')
   },
@@ -253,7 +304,17 @@ export const volunteerAPI = {
 
   getStats: async () => {
     if (USE_MOCK_BACKEND) {
-      return mockBackend.getVolunteerStats()
+      const userId = sessionStorage.getItem('currentUserId') || sessionStorage.getItem('firebase_user_id') || localStorage.getItem('currentUserId') || localStorage.getItem('firebase_user_id')
+      if (!userId) {
+        return {
+          totalHelps: 0,
+          hoursVolunteered: 0,
+          currentActive: 0,
+          rating: null,
+          streak: 0,
+        }
+      }
+      return mockBackend.getVolunteerStats(userId)
     }
     return apiCall('/volunteer/stats')
   },
@@ -267,14 +328,22 @@ export const volunteerAPI = {
 
   getHistory: async () => {
     if (USE_MOCK_BACKEND) {
-      return mockBackend.getVolunteerHistory()
+      const userId = sessionStorage.getItem('currentUserId') || sessionStorage.getItem('firebase_user_id') || localStorage.getItem('currentUserId') || localStorage.getItem('firebase_user_id')
+      if (!userId) {
+        return []
+      }
+      return mockBackend.getVolunteerHistory(userId)
     }
     return apiCall('/volunteer/history')
   },
 
   acceptOpportunity: async (requestId) => {
     if (USE_MOCK_BACKEND) {
-      return mockBackend.acceptRequest(requestId)
+      const userId = sessionStorage.getItem('currentUserId') || sessionStorage.getItem('firebase_user_id') || localStorage.getItem('currentUserId') || localStorage.getItem('firebase_user_id')
+      if (!userId) {
+        throw new Error('User must be logged in to accept opportunities')
+      }
+      return mockBackend.acceptRequest(requestId, userId)
     }
     return apiCall(`/volunteer/accept/${requestId}`, {
       method: 'POST',
@@ -283,7 +352,11 @@ export const volunteerAPI = {
 
   markComplete: async (helpId, completionData) => {
     if (USE_MOCK_BACKEND) {
-      return mockBackend.completeRequest(helpId, completionData)
+      const userId = sessionStorage.getItem('currentUserId') || sessionStorage.getItem('firebase_user_id') || localStorage.getItem('currentUserId') || localStorage.getItem('firebase_user_id')
+      if (!userId) {
+        throw new Error('User must be logged in to mark requests as complete')
+      }
+      return mockBackend.completeRequest(helpId, userId, completionData?.rating, completionData?.feedback)
     }
     return apiCall(`/volunteer/complete/${helpId}`, {
       method: 'POST',
@@ -407,27 +480,62 @@ export const cityAPI = {
 // Roadmap APIs
 export const roadmapAPI = {
   getBusinesses: async (filters = {}) => {
+    if (USE_MOCK_BACKEND) {
+      return mockBackend.getBusinesses(filters)
+    }
     const queryParams = new URLSearchParams(filters).toString()
     return apiCall(`/roadmap/businesses?${queryParams}`)
   },
 
   getTransportation: async () => {
+    if (USE_MOCK_BACKEND) {
+      // Return mock transportation data
+      return [
+        {
+          id: 'trans_1',
+          name: 'Calgary Transit Access',
+          type: 'Paratransit',
+          description: 'Door-to-door accessible transit service',
+          phone: '+1-403-262-1000',
+          eligibility: 'Access2 card holders',
+        }
+      ]
+    }
     return apiCall('/roadmap/transportation')
   },
 
   getPathfinders: async () => {
+    if (USE_MOCK_BACKEND) {
+      // Return mock pathfinder data
+      return []
+    }
     return apiCall('/roadmap/pathfinders')
   },
 
   getDeals: async () => {
+    if (USE_MOCK_BACKEND) {
+      // Return mock deals data
+      return []
+    }
     return apiCall('/roadmap/deals')
   },
 
   getSupportServices: async () => {
+    if (USE_MOCK_BACKEND) {
+      // Return special needs locations as support services
+      return mockBackend.getLocations({ type: 'special-needs-location' })
+    }
     return apiCall('/roadmap/support-services')
   },
 
   submitBusinessInfo: async (businessData) => {
+    if (USE_MOCK_BACKEND) {
+      const userId = sessionStorage.getItem('currentUserId') || sessionStorage.getItem('firebase_user_id') || localStorage.getItem('currentUserId') || localStorage.getItem('firebase_user_id')
+      if (!userId) {
+        throw new Error('User must be logged in to submit business info')
+      }
+      return mockBackend.createBusiness(userId, businessData)
+    }
     return apiCall('/roadmap/businesses', {
       method: 'POST',
       body: JSON.stringify(businessData),

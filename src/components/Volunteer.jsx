@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react'
 import { useApp } from '../context/AppContext'
+import { useError } from '../context/ErrorContext'
 import { volunteerAPI } from '../services/api'
 import './Volunteer.css'
 
 function Volunteer() {
   const { user } = useApp()
-  const [activeTab, setActiveTab] = useState('opportunities')
-  const [selectedFilter, setSelectedFilter] = useState('all')
+  const { showError, safeAsync } = useError()
+  const [activeTab, setActiveTab] = useState('active')
   const [volunteerStats, setVolunteerStats] = useState({
     totalHelps: 0,
     hoursVolunteered: 0,
@@ -14,7 +15,6 @@ function Volunteer() {
     rating: 0,
     streak: 0
   })
-  const [activeOpportunities, setActiveOpportunities] = useState([])
   const [myActiveHelps, setMyActiveHelps] = useState([])
   const [achievements, setAchievements] = useState([])
   const [volunteerHistory, setVolunteerHistory] = useState([])
@@ -37,7 +37,7 @@ function Volunteer() {
     }, 10000)
     
     return () => clearInterval(interval)
-  }, [activeTab, selectedFilter, user?.id])
+  }, [activeTab, user?.id])
 
   const loadData = async () => {
     try {
@@ -48,18 +48,15 @@ function Volunteer() {
       const stats = await volunteerAPI.getStats()
       setVolunteerStats(stats)
 
-      if (activeTab === 'opportunities') {
-        const response = await volunteerAPI.getOpportunities({ category: selectedFilter !== 'all' ? selectedFilter : undefined })
-        setActiveOpportunities(response.opportunities || [])
-      } else if (activeTab === 'active') {
+      if (activeTab === 'active') {
         const response = await volunteerAPI.getMyHelps()
-        setMyActiveHelps(response.helps || [])
+        setMyActiveHelps(response.helps || response || [])
       } else if (activeTab === 'achievements') {
         const response = await volunteerAPI.getAchievements()
-        setAchievements(response.achievements || [])
+        setAchievements(response.achievements || response || [])
       } else if (activeTab === 'history') {
         const response = await volunteerAPI.getHistory()
-        setVolunteerHistory(response.history || [])
+        setVolunteerHistory(response.history || response || [])
       }
     } catch (err) {
       setError(err.message || 'Failed to load data')
@@ -69,41 +66,30 @@ function Volunteer() {
     }
   }
 
-  const handleAcceptOpportunity = async (requestId) => {
-    try {
-      setSubmitting(true)
-      await volunteerAPI.acceptOpportunity(requestId)
-      alert('Opportunity accepted! Check "My Active Helps" tab.')
-      // Reload opportunities
-      const response = await volunteerAPI.getOpportunities({ category: selectedFilter !== 'all' ? selectedFilter : undefined })
-      setActiveOpportunities(response.opportunities || [])
-      // Reload stats
-      const stats = await volunteerAPI.getStats()
-      setVolunteerStats(stats)
-    } catch (err) {
-      alert(err.message || 'Failed to accept opportunity')
-      console.error('Error accepting opportunity:', err)
-    } finally {
-      setSubmitting(false)
-    }
-  }
-
   const handleMarkComplete = async (helpId, hoursSpent = 1) => {
+    if (!helpId) {
+      showError('Invalid help ID')
+      return
+    }
+    
     try {
       setSubmitting(true)
-      await volunteerAPI.markComplete(helpId, { hoursSpent, notes: 'Completed successfully' })
-      alert('Help marked as completed!')
-      // Reload data
-      await loadData()
+      const result = await safeAsync(
+        () => volunteerAPI.markComplete(helpId, { hoursSpent, notes: 'Completed successfully' }),
+        'Failed to mark as complete'
+      )
+      
+      if (result) {
+        // Reload data
+        await loadData()
+      }
     } catch (err) {
-      alert(err.message || 'Failed to mark as complete')
+      showError(err.message || 'Failed to mark as complete. Please try again.')
       console.error('Error marking complete:', err)
     } finally {
       setSubmitting(false)
     }
   }
-
-  const filters = ['all', 'High Priority', 'Nearby', 'Elderly Care', 'Accessibility', 'Community']
 
   return (
     <div className="volunteer-container">
@@ -198,17 +184,6 @@ function Volunteer() {
       {/* Tabs */}
       <div className="volunteer-tabs">
         <button
-          className={`volunteer-tab ${activeTab === 'opportunities' ? 'active' : ''}`}
-          onClick={() => setActiveTab('opportunities')}
-        >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <circle cx="12" cy="12" r="10"/>
-            <polyline points="12 6 12 12 16 14"/>
-          </svg>
-          <span>Opportunities</span>
-          <span className="volunteer-tab-badge">{activeOpportunities.length}</span>
-        </button>
-        <button
           className={`volunteer-tab ${activeTab === 'active' ? 'active' : ''}`}
           onClick={() => setActiveTab('active')}
         >
@@ -217,7 +192,7 @@ function Volunteer() {
             <polyline points="22 4 12 14.01 9 11.01"/>
           </svg>
           <span>My Active Helps</span>
-          <span className="volunteer-tab-badge">{myActiveHelps.filter(h => h.status !== 'Completed').length}</span>
+          <span className="volunteer-tab-badge">{myActiveHelps.filter(h => h.status !== 'Completed' && h.status !== 'completed').length}</span>
         </button>
         <button
           className={`volunteer-tab ${activeTab === 'achievements' ? 'active' : ''}`}
@@ -241,113 +216,6 @@ function Volunteer() {
 
       {/* Content Sections */}
       <div className="volunteer-content">
-        {activeTab === 'opportunities' && (
-          <div className="volunteer-section">
-            <div className="volunteer-section-header">
-              <h2 className="volunteer-section-title">Available Opportunities</h2>
-              <div className="volunteer-filters">
-                {filters.map(filter => (
-                  <button
-                    key={filter}
-                    className={`volunteer-filter-btn ${selectedFilter === filter ? 'active' : ''}`}
-                    onClick={() => setSelectedFilter(filter)}
-                  >
-                    {filter}
-                  </button>
-                ))}
-              </div>
-            </div>
-            {loading ? (
-              <div style={{ textAlign: 'center', padding: '60px 20px', color: 'rgba(0,0,0,0.6)' }}>
-                <div style={{ fontSize: '18px', fontWeight: 600 }}>Loading opportunities...</div>
-              </div>
-            ) : error ? (
-              <div style={{ textAlign: 'center', padding: '60px 20px', color: '#ef4444' }}>
-                <div style={{ fontSize: '18px', fontWeight: 600 }}>{error}</div>
-              </div>
-            ) : activeOpportunities.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '60px 20px', color: 'rgba(0,0,0,0.6)' }}>
-                <div style={{ fontSize: '18px', fontWeight: 600, marginBottom: '8px' }}>No opportunities found</div>
-                <div style={{ fontSize: '14px' }}>Check back later for new volunteer opportunities</div>
-              </div>
-            ) : (
-            <div className="volunteer-opportunities-grid">
-              {activeOpportunities.map(opp => (
-                <div key={opp.id} className="volunteer-opportunity-card">
-                  <div className="volunteer-opportunity-header">
-                    <div className="volunteer-opportunity-category">{opp.category}</div>
-                    <div className={`volunteer-urgency-badge ${opp.urgency.toLowerCase()}`}>
-                      {opp.urgency} Priority
-                    </div>
-                  </div>
-                  <h3 className="volunteer-opportunity-title">{opp.title}</h3>
-                  <p className="volunteer-opportunity-description">{opp.description}</p>
-                  <div className="volunteer-opportunity-meta">
-                    <div className="volunteer-meta-item">
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-                        <circle cx="12" cy="7" r="4"/>
-                      </svg>
-                      <span>{opp.requester}</span>
-                    </div>
-                    <div className="volunteer-meta-item">
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
-                        <circle cx="12" cy="10" r="3"/>
-                      </svg>
-                      <span>{opp.distance}</span>
-                    </div>
-                    <div className="volunteer-meta-item">
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <circle cx="12" cy="12" r="10"/>
-                        <polyline points="12 6 12 12 16 14"/>
-                      </svg>
-                      <span>{opp.timeNeeded}</span>
-                    </div>
-                    <div className="volunteer-meta-item">
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <circle cx="12" cy="12" r="10"/>
-                        <polyline points="12 6 12 12 16 14"/>
-                      </svg>
-                      <span>{opp.posted}</span>
-                    </div>
-                  </div>
-                  <div className="volunteer-opportunity-skills">
-                    {opp.skills.map((skill, idx) => (
-                      <span key={idx} className="volunteer-skill-tag">{skill}</span>
-                    ))}
-                  </div>
-                  {opp.volunteersNeeded && (
-                    <div className="volunteer-volunteers-needed">
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-                        <circle cx="9" cy="7" r="4"/>
-                        <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
-                        <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-                      </svg>
-                      <span>{opp.currentVolunteers} of {opp.volunteersNeeded} volunteers</span>
-                    </div>
-                  )}
-                  <div className="volunteer-opportunity-reward">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
-                    </svg>
-                    <span>Reward: {opp.reward}</span>
-                  </div>
-                  <button 
-                    className="volunteer-accept-btn"
-                    onClick={() => handleAcceptOpportunity(opp.id)}
-                    disabled={submitting}
-                  >
-                    {submitting ? 'Processing...' : 'Accept Opportunity'}
-                  </button>
-                </div>
-              ))}
-            </div>
-            )}
-          </div>
-        )}
-
         {activeTab === 'active' && (
           <div className="volunteer-section">
             <div className="volunteer-section-header">
@@ -364,7 +232,7 @@ function Volunteer() {
             ) : myActiveHelps.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '60px 20px', color: 'rgba(0,0,0,0.6)' }}>
                 <div style={{ fontSize: '18px', fontWeight: 600, marginBottom: '8px' }}>No active helps</div>
-                <div style={{ fontSize: '14px' }}>Accept opportunities from the Opportunities tab to get started</div>
+                <div style={{ fontSize: '14px' }}>Accept requests from the Help Requests page to get started</div>
               </div>
             ) : (
             <div className="volunteer-active-helps-list">

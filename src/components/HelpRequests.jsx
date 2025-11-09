@@ -1,15 +1,35 @@
 import React, { useState, useEffect } from 'react'
 import { useLocation } from 'react-router-dom'
 import { useApp } from '../context/AppContext'
+import { useError } from '../context/ErrorContext'
 import { requestsAPI, roadmapAPI } from '../services/api'
 import InteractiveMap from './InteractiveMap'
 import './HelpRequests.css'
 
 function HelpRequests() {
   const { user } = useApp()
+  const { showError, safeAsync } = useError()
   const location = useLocation()
-  // Default to map view if route includes '/map'
-  const [viewMode, setViewMode] = useState(location.pathname.includes('/map') ? 'map' : 'list')
+  
+  // Determine initial view mode based on route
+  const getInitialViewMode = () => {
+    const path = location.pathname
+    if (path.includes('/map')) return 'map'
+    if (path.includes('/requests')) return 'list'
+    return 'list' // default
+  }
+  
+  const [viewMode, setViewMode] = useState(getInitialViewMode())
+
+  // Update viewMode when route changes
+  useEffect(() => {
+    const path = location.pathname
+    if (path.includes('/map')) {
+      setViewMode('map')
+    } else if (path.includes('/requests')) {
+      setViewMode('list')
+    }
+  }, [location.pathname])
   const [selectedCategory, setSelectedCategory] = useState('all')
   const [selectedPriority, setSelectedPriority] = useState('all')
   const [selectedStatus, setSelectedStatus] = useState('all')
@@ -87,23 +107,35 @@ function HelpRequests() {
       // Remove undefined values
       Object.keys(filters).forEach(key => filters[key] === undefined && delete filters[key])
       
-      const response = await requestsAPI.getAll(filters)
-      let allRequests = response.requests || response || []
+      const response = await safeAsync(
+        () => requestsAPI.getAll(filters),
+        'Failed to load requests'
+      )
       
-      // If user is not a guest, filter to show user-specific data when appropriate
-      // (e.g., show user's own requests in a separate view if needed)
-      // For now, show all requests but mark user's own requests
-      if (user && !user.isGuest) {
-        allRequests = allRequests.map(req => ({
-          ...req,
-          isMine: req.requesterId === user.id || req.requester === user.email,
-          isAcceptedByMe: req.volunteerId === user.id || req.volunteer === user.email,
-        }))
+      if (response) {
+        let allRequests = response.requests || response || []
+        
+        // Ensure it's an array
+        if (!Array.isArray(allRequests)) {
+          allRequests = []
+        }
+        
+        // If user is not a guest, filter to show user-specific data when appropriate
+        if (user && !user.isGuest) {
+          allRequests = allRequests.map(req => ({
+            ...req,
+            isMine: req.requesterId === user.id || req.requester === user.email,
+            isAcceptedByMe: req.volunteerId === user.id || req.volunteer === user.email,
+          }))
+        }
+        
+        setRequests(allRequests)
+        setError(null)
       }
-      
-      setRequests(allRequests)
     } catch (err) {
-      setError(err.message || 'Failed to load requests')
+      const errorMsg = err.message || 'Failed to load requests'
+      setError(errorMsg)
+      showError(errorMsg)
       console.error('Error loading requests:', err)
     } finally {
       setLoading(false)
@@ -113,75 +145,80 @@ function HelpRequests() {
   const loadAccessibleData = async () => {
     try {
       // Load accessible businesses
-      try {
-        const businessesResponse = await roadmapAPI.getBusinesses({ 
+      const businessesResponse = await safeAsync(
+        () => roadmapAPI.getBusinesses({ 
           accessible: true,
           specialNeeds: true 
-        })
-        const businesses = businessesResponse.businesses || businessesResponse || []
-        setAccessibleBusinesses(businesses)
-      } catch (err) {
-        console.log('Error loading businesses, using mock data:', err)
-        // Use mock data for now
-        setAccessibleBusinesses([
-          {
-            id: 'biz1',
-            name: 'Accessible Coffee Shop',
-            type: 'Restaurant',
-            coordinates: { lat: 51.0447, lng: -114.0719 },
-            accessibilityFeatures: ['Wheelchair Access', 'ASL Staff', 'Sensory Friendly']
-          },
-          {
-            id: 'biz2',
-            name: 'Inclusive Grocery Store',
-            type: 'Retail',
-            coordinates: { lat: 51.0450, lng: -114.0720 },
-            accessibilityFeatures: ['Wheelchair Access', 'Low Sensory Hours']
-          }
-        ])
+        }),
+        'Failed to load businesses'
+      )
+      
+      if (businessesResponse) {
+        const businesses = Array.isArray(businessesResponse) 
+          ? businessesResponse 
+          : (businessesResponse.businesses || [])
+        
+        // Ensure all businesses have proper coordinate structure
+        const businessesWithCoords = businesses.map(biz => ({
+          ...biz,
+          coordinates: biz.coordinates || { lat: biz.latitude, lng: biz.longitude },
+          latitude: biz.latitude || biz.coordinates?.lat,
+          longitude: biz.longitude || biz.coordinates?.lng,
+        })).filter(biz => biz.latitude && biz.longitude) // Only include businesses with valid coordinates
+        
+        setAccessibleBusinesses(businessesWithCoords)
       }
 
       // Load special needs support locations
-      try {
-        const supportResponse = await roadmapAPI.getSupportServices()
-        const services = supportResponse.services || supportResponse || []
-        setSpecialNeedsLocations(services)
-      } catch (err) {
-        console.log('Error loading support services, using mock data:', err)
-        // Use mock data for now
-        setSpecialNeedsLocations([
-          {
-            id: 'loc1',
-            name: 'Community Support Center',
-            type: 'Support Service',
-            coordinates: { lat: 51.0445, lng: -114.0715 },
-            services: ['Counseling', 'Resource Navigation', 'Peer Support']
-          },
-          {
-            id: 'loc2',
-            name: 'Accessibility Resource Hub',
-            type: 'Resource Center',
-            coordinates: { lat: 51.0452, lng: -114.0722 },
-            services: ['Equipment Loan', 'Information', 'Advocacy']
-          }
-        ])
+      const supportResponse = await safeAsync(
+        () => roadmapAPI.getSupportServices(),
+        'Failed to load support services'
+      )
+      
+      if (supportResponse) {
+        const services = Array.isArray(supportResponse)
+          ? supportResponse
+          : (supportResponse.services || [])
+        
+        // Ensure all locations have proper coordinate structure
+        const locationsWithCoords = services.map(loc => ({
+          ...loc,
+          coordinates: loc.coordinates || { lat: loc.latitude, lng: loc.longitude },
+          latitude: loc.latitude || loc.coordinates?.lat,
+          longitude: loc.longitude || loc.coordinates?.lng,
+        })).filter(loc => loc.latitude && loc.longitude) // Only include locations with valid coordinates
+        
+        setSpecialNeedsLocations(locationsWithCoords)
       }
     } catch (err) {
       console.error('Error loading accessible data:', err)
+      // Data will remain empty, map will just show requests
     }
   }
 
   const handleAcceptRequest = async (requestId) => {
+    if (!requestId) {
+      showError('Invalid request ID')
+      return
+    }
+    
     try {
       setSubmitting(true)
-      const updated = await requestsAPI.accept(requestId)
-      setRequests(prev => prev.map(r => r.id === updated.id ? updated : r))
-      if (selectedRequest && selectedRequest.id === requestId) {
-        setSelectedRequest(updated)
+      const updated = await safeAsync(
+        () => requestsAPI.accept(requestId),
+        'Failed to accept request'
+      )
+      
+      if (updated) {
+        setRequests(prev => prev.map(r => 
+          (r.id === updated.id || r.requestId === updated.id || r.requestId === updated.requestId) ? updated : r
+        ))
+        if (selectedRequest && (selectedRequest.id === requestId || selectedRequest.requestId === requestId)) {
+          setSelectedRequest(updated)
+        }
       }
-      alert('Request accepted successfully!')
     } catch (err) {
-      alert(err.message || 'Failed to accept request')
+      showError(err.message || 'Failed to accept request. Please try again.')
       console.error('Error accepting request:', err)
     } finally {
       setSubmitting(false)
@@ -189,11 +226,22 @@ function HelpRequests() {
   }
 
   const handleViewDetails = async (requestId) => {
+    if (!requestId) {
+      showError('Invalid request ID')
+      return
+    }
+    
     try {
-      const request = await requestsAPI.getById(requestId)
-      setSelectedRequest(request)
+      const request = await safeAsync(
+        () => requestsAPI.getById(requestId),
+        'Failed to load request details'
+      )
+      
+      if (request) {
+        setSelectedRequest(request)
+      }
     } catch (err) {
-      alert(err.message || 'Failed to load request details')
+      showError(err.message || 'Failed to load request details. Please try again.')
       console.error('Error loading request:', err)
     }
   }
@@ -202,41 +250,62 @@ function HelpRequests() {
     e.preventDefault()
     try {
       if (!user || user.isGuest) {
-        alert('Please log in to create a request')
+        showError('Please log in to create a request')
+        return
+      }
+      
+      // Validation
+      if (!formData.title || formData.title.trim().length < 3) {
+        showError('Title must be at least 3 characters')
+        return
+      }
+      
+      if (!formData.description || formData.description.trim().length < 10) {
+        showError('Description must be at least 10 characters')
+        return
+      }
+      
+      if (!formData.category) {
+        showError('Please select a category')
         return
       }
       
       setSubmitting(true)
       const requestData = {
-        title: formData.title,
-        description: formData.description,
+        title: formData.title.trim(),
+        description: formData.description.trim(),
         category: formData.category,
         priority: formData.priority,
-        location: formData.location,
+        location: formData.location || user?.location || 'Calgary',
         timeNeeded: formData.timeNeeded,
         requester: user?.name || user?.email || 'Current User',
-        requesterId: user?.id || user?.sub || 'user_1',
+        requesterId: user?.id || user?.sub,
         email: user?.email,
-        distance: '0.5 mi', // Would be calculated from user location
+        distance: '0.5 mi',
         coordinates: user?.coordinates || { lat: 51.0447, lng: -114.0719 },
         skills: [],
       }
       
-      const newRequest = await requestsAPI.create(requestData)
-      setRequests(prev => [newRequest, ...prev])
-      setShowRequestForm(false)
-      setFormData({
-        title: '',
-        description: '',
-        category: '',
-        priority: 'Medium',
-        location: '',
-        timeNeeded: '1 hour',
-        image: null,
-      })
-      alert('Request created successfully!')
+      const newRequest = await safeAsync(
+        () => requestsAPI.create(requestData),
+        'Failed to create request'
+      )
+      
+      if (newRequest) {
+        setRequests(prev => [newRequest, ...prev])
+        setShowRequestForm(false)
+        setFormData({
+          title: '',
+          description: '',
+          category: '',
+          priority: 'Medium',
+          location: '',
+          timeNeeded: '1 hour',
+          image: null,
+        })
+      }
     } catch (err) {
-      alert(err.message || 'Failed to create request')
+      showError(err.message || 'Failed to create request. Please try again.')
       console.error('Error creating request:', err)
     } finally {
       setSubmitting(false)
@@ -244,19 +313,31 @@ function HelpRequests() {
   }
 
   const handleDeleteRequest = async (requestId) => {
-    if (!window.confirm('Are you sure you want to delete this request?')) {
+    if (!requestId) {
+      showError('Invalid request ID')
       return
     }
+    
+    // Use a simple confirmation - could be replaced with a beautiful modal later
+    if (!window.confirm('Are you sure you want to delete this request? This action cannot be undone.')) {
+      return
+    }
+    
     try {
       setSubmitting(true)
-      await requestsAPI.delete(requestId)
-      setRequests(prev => prev.filter(r => r.id !== requestId))
-      if (selectedRequest && selectedRequest.id === requestId) {
-        setSelectedRequest(null)
+      const result = await safeAsync(
+        () => requestsAPI.delete(requestId),
+        'Failed to delete request'
+      )
+      
+      if (result) {
+        setRequests(prev => prev.filter(r => r.id !== requestId && r.requestId !== requestId))
+        if (selectedRequest && (selectedRequest.id === requestId || selectedRequest.requestId === requestId)) {
+          setSelectedRequest(null)
+        }
       }
-      alert('Request deleted successfully')
     } catch (err) {
-      alert(err.message || 'Failed to delete request')
+      showError(err.message || 'Failed to delete request. Please try again.')
       console.error('Error deleting request:', err)
     } finally {
       setSubmitting(false)
@@ -264,20 +345,32 @@ function HelpRequests() {
   }
 
   const handleCompleteRequest = async (requestId) => {
+    if (!requestId) {
+      showError('Invalid request ID')
+      return
+    }
+    
     try {
       setSubmitting(true)
       const completionData = {
         hoursSpent: 1,
         notes: 'Completed successfully',
       }
-      const updated = await requestsAPI.complete(requestId, completionData)
-      setRequests(prev => prev.map(r => r.id === updated.id ? updated : r))
-      if (selectedRequest && selectedRequest.id === requestId) {
-        setSelectedRequest(updated)
+      const updated = await safeAsync(
+        () => requestsAPI.complete(requestId, completionData),
+        'Failed to complete request'
+      )
+      
+      if (updated) {
+        setRequests(prev => prev.map(r => 
+          (r.id === updated.id || r.requestId === updated.id || r.requestId === updated.requestId) ? updated : r
+        ))
+        if (selectedRequest && (selectedRequest.id === requestId || selectedRequest.requestId === requestId)) {
+          setSelectedRequest(updated)
+        }
       }
-      alert('Request marked as completed!')
     } catch (err) {
-      alert(err.message || 'Failed to complete request')
+      showError(err.message || 'Failed to complete request. Please try again.')
       console.error('Error completing request:', err)
     } finally {
       setSubmitting(false)
@@ -299,13 +392,26 @@ function HelpRequests() {
       <div className="help-requests-header">
         <div className="help-requests-header-content">
           <div className="help-requests-header-icon">
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-            </svg>
+            {viewMode === 'map' ? (
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+                <circle cx="12" cy="10" r="3"/>
+              </svg>
+            ) : (
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+              </svg>
+            )}
           </div>
           <div>
-            <h1 className="help-requests-title">Help Requests</h1>
-            <p className="help-requests-subtitle">Find and respond to community needs in your area</p>
+            <h1 className="help-requests-title">
+              {viewMode === 'map' ? 'Community Map' : 'Help Requests'}
+            </h1>
+            <p className="help-requests-subtitle">
+              {viewMode === 'map' 
+                ? 'Explore accessible locations, businesses, and nearby help requests on the map' 
+                : 'Find and respond to community needs in your area'}
+            </p>
           </div>
         </div>
         <div className="help-requests-header-actions">

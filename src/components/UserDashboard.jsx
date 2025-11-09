@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useApp } from '../context/AppContext'
+import { useError } from '../context/ErrorContext'
 import { requestsAPI, volunteerAPI } from '../services/api'
 import './UserDashboard.css'
 
 function UserDashboard() {
   const { user } = useApp()
+  const { showError, safeAsync } = useError()
   const navigate = useNavigate()
   const [showRequestForm, setShowRequestForm] = useState(false)
   const [nearbyRequests, setNearbyRequests] = useState([])
@@ -48,63 +50,71 @@ function UserDashboard() {
       setLoading(true)
       
       // Load nearby requests - user-specific based on location
-      const requestsResponse = await requestsAPI.getAll({ 
-        status: 'Active',
-        limit: 10
-      })
-      const allRequests = requestsResponse.requests || requestsResponse || []
-      setNearbyRequests(allRequests.slice(0, 3))
-      setStats(prev => ({ ...prev, nearbyCount: allRequests.length }))
+      const requestsResponse = await safeAsync(
+        () => requestsAPI.getAll({ status: 'Active', limit: 10 }),
+        'Failed to load nearby requests'
+      )
+      
+      if (requestsResponse) {
+        const allRequests = requestsResponse.requests || requestsResponse || []
+        if (Array.isArray(allRequests)) {
+          setNearbyRequests(allRequests.slice(0, 3))
+          setStats(prev => ({ ...prev, nearbyCount: allRequests.length }))
+        }
+      }
 
       // Load my requests - user-specific
-      try {
-        const myRequestsResponse = await requestsAPI.getMyRequests()
+      const myRequestsResponse = await safeAsync(
+        () => requestsAPI.getMyRequests(),
+        'Failed to load your requests'
+      )
+      
+      if (myRequestsResponse) {
         const myReqs = myRequestsResponse.requests || myRequestsResponse || []
-        setMyRequests(myReqs.slice(0, 5))
-      } catch (err) {
-        // Filter by user ID if getMyRequests not available
-        const myReqs = allRequests.filter(req => 
-          req.requesterId === user.id || req.requester === user.email
-        )
-        setMyRequests(myReqs.slice(0, 5))
+        if (Array.isArray(myReqs)) {
+          setMyRequests(myReqs.slice(0, 5))
+        }
       }
 
       // Load volunteer stats - user-specific
-      try {
-        const volunteerStats = await volunteerAPI.getStats()
+      const volunteerStats = await safeAsync(
+        () => volunteerAPI.getStats(),
+        'Failed to load volunteer stats'
+      )
+      
+      if (volunteerStats) {
         setStats(prev => ({
           ...prev,
           activeHelps: volunteerStats.currentActive || volunteerStats.active || 0,
           completedHelps: volunteerStats.totalHelps || volunteerStats.completed || 0,
         }))
-      } catch (err) {
-        // Calculate from accepted requests
-        const acceptedReqs = allRequests.filter(req => 
-          req.volunteerId === user.id || req.volunteer === user.email
-        )
-        const active = acceptedReqs.filter(r => r.status === 'In Progress' || r.status === 'Active').length
-        const completed = acceptedReqs.filter(r => r.status === 'Completed').length
-        setStats(prev => ({
-          ...prev,
-          activeHelps: active,
-          completedHelps: completed,
-        }))
       }
     } catch (error) {
       console.error('Error loading dashboard data:', error)
+      showError('Failed to load dashboard data. Please refresh the page.')
     } finally {
       setLoading(false)
     }
   }
 
   const handleAcceptRequest = async (requestId) => {
+    if (!requestId) {
+      showError('Invalid request. Please try again.')
+      return
+    }
+    
     try {
       setSubmitting(true)
-      await requestsAPI.accept(requestId)
-      alert('Request accepted! Check the Volunteer tab for details.')
-      await loadDashboardData()
+      const result = await safeAsync(
+        () => requestsAPI.accept(requestId),
+        'Failed to accept request'
+      )
+      
+      if (result) {
+        await loadDashboardData()
+      }
     } catch (error) {
-      alert(error.message || 'Failed to accept request')
+      showError(error.message || 'Failed to accept request. Please try again.')
       console.error('Error accepting request:', error)
     } finally {
       setSubmitting(false)
@@ -123,40 +133,62 @@ function UserDashboard() {
     e.preventDefault()
     try {
       setSubmitting(true)
+      
+      // Validation
       if (!user || user.isGuest) {
-        alert('Please log in to create a request')
+        showError('Please log in to create a request')
+        return
+      }
+      
+      if (!requestFormData.title || requestFormData.title.trim().length < 3) {
+        showError('Title must be at least 3 characters')
+        return
+      }
+      
+      if (!requestFormData.description || requestFormData.description.trim().length < 10) {
+        showError('Description must be at least 10 characters')
+        return
+      }
+      
+      if (!requestFormData.category) {
+        showError('Please select a category')
         return
       }
       
       const requestData = {
-        title: requestFormData.title,
-        description: requestFormData.description,
+        title: requestFormData.title.trim(),
+        description: requestFormData.description.trim(),
         category: requestFormData.category,
         priority: requestFormData.priority,
-        location: requestFormData.location,
+        location: requestFormData.location || user?.location || 'Calgary',
         timeNeeded: requestFormData.timeNeeded,
         requester: user?.name || user?.email || 'Current User',
-        requesterId: user?.id || user?.sub || 'user_1',
+        requesterId: user?.id || user?.sub,
         email: user?.email,
         distance: '0.5 mi',
         coordinates: user?.coordinates || { lat: 51.0447, lng: -114.0719 },
         skills: [],
       }
       
-      await requestsAPI.create(requestData)
-      alert('Request created successfully!')
-      setShowRequestForm(false)
-      setRequestFormData({
-        title: '',
-        description: '',
-        category: '',
-        location: '',
-        priority: 'Medium',
-        timeNeeded: '1 hour',
-      })
-      await loadDashboardData()
+      const result = await safeAsync(
+        () => requestsAPI.create(requestData),
+        'Failed to create request'
+      )
+      
+      if (result) {
+        setShowRequestForm(false)
+        setRequestFormData({
+          title: '',
+          description: '',
+          category: '',
+          location: '',
+          priority: 'Medium',
+          timeNeeded: '1 hour',
+        })
+        await loadDashboardData()
+      }
     } catch (error) {
-      alert(error.message || 'Failed to create request')
+      showError(error.message || 'Failed to create request. Please try again.')
       console.error('Error creating request:', error)
     } finally {
       setSubmitting(false)

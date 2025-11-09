@@ -34,7 +34,19 @@ function Login() {
 
     try {
       if (isSignUp) {
-        // Sign up
+        // Sign up validation
+        if (!formData.name || formData.name.trim().length < 2) {
+          setError('Name must be at least 2 characters')
+          setSubmitting(false)
+          return
+        }
+
+        if (!formData.email || !/\S+@\S+\.\S+/.test(formData.email)) {
+          setError('Please enter a valid email address')
+          setSubmitting(false)
+          return
+        }
+
         if (formData.password !== formData.confirmPassword) {
           setError('Passwords do not match')
           setSubmitting(false)
@@ -47,15 +59,65 @@ function Login() {
           return
         }
 
+        // Sign up
         await signup(formData.email, formData.password, formData.name)
-        navigate('/dashboard/user')
+        
+        // Clear form
+        setFormData({
+          name: '',
+          email: '',
+          password: '',
+          confirmPassword: '',
+          location: '',
+          role: ''
+        })
+        
+        // Navigate to dashboard after successful signup
+        navigate('/dashboard/user', { replace: true })
       } else {
+        // Sign in validation
+        if (!formData.email || !/\S+@\S+\.\S+/.test(formData.email)) {
+          setError('Please enter a valid email address')
+          setSubmitting(false)
+          return
+        }
+
+        if (!formData.password || formData.password.length < 6) {
+          setError('Password must be at least 6 characters')
+          setSubmitting(false)
+          return
+        }
+
         // Sign in
         await login(formData.email, formData.password)
-        navigate('/dashboard/user')
+        
+        // Clear password field
+        setFormData(prev => ({ ...prev, password: '' }))
+        
+        // Navigate to dashboard after successful login
+        navigate('/dashboard/user', { replace: true })
       }
     } catch (err) {
-      setError(err.message || 'An error occurred. Please try again.')
+      // Handle Firebase auth errors with user-friendly messages
+      let errorMessage = 'An error occurred. Please try again.'
+      
+      if (err.code === 'auth/user-not-found') {
+        errorMessage = 'No account found with this email. Please sign up first.'
+      } else if (err.code === 'auth/wrong-password') {
+        errorMessage = 'Incorrect password. Please try again.'
+      } else if (err.code === 'auth/email-already-in-use') {
+        errorMessage = 'This email is already registered. Please sign in instead.'
+      } else if (err.code === 'auth/weak-password') {
+        errorMessage = 'Password is too weak. Please use a stronger password.'
+      } else if (err.code === 'auth/invalid-email') {
+        errorMessage = 'Invalid email address. Please check and try again.'
+      } else if (err.code === 'auth/too-many-requests') {
+        errorMessage = 'Too many failed attempts. Please try again later.'
+      } else if (err.message) {
+        errorMessage = err.message
+      }
+      
+      setError(errorMessage)
     } finally {
       setSubmitting(false)
     }

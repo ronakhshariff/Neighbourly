@@ -66,9 +66,14 @@ export const FirebaseAuthProvider = ({ children }) => {
   const logout = async () => {
     try {
       setError(null)
+      // Sign out from Firebase
       await signOut(auth)
+      // Clear user state immediately
+      setUser(null)
     } catch (err) {
       setError(err.message)
+      // Clear user state even if signOut fails
+      setUser(null)
       throw err
     }
   }

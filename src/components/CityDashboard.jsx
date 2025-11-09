@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useApp } from '../context/AppContext'
+import { useError } from '../context/ErrorContext'
 import { cityAPI } from '../services/api'
 import CityAuthorityVerification from './CityAuthorityVerification'
 import './CityDashboard.css'
 
 function CityDashboard() {
   const { user } = useApp()
+  const { showError, safeAsync } = useError()
   const navigate = useNavigate()
   const [selectedTimeframe, setSelectedTimeframe] = useState('7d')
   const [isVerified, setIsVerified] = useState(false)
@@ -78,13 +80,23 @@ function CityDashboard() {
   }
 
   const handleVerifyWorker = async (workerId, decision) => {
+    if (!workerId || !decision) {
+      showError('Invalid worker ID or decision')
+      return
+    }
+    
     try {
       setSubmitting(true)
-      await cityAPI.verifyWorker(workerId, decision)
-      alert(`Worker ${decision === 'approved' ? 'approved' : 'rejected'} successfully`)
-      await loadDashboardData()
+      const result = await safeAsync(
+        () => cityAPI.verifyWorker(workerId, decision),
+        'Failed to verify worker'
+      )
+      
+      if (result) {
+        await loadDashboardData()
+      }
     } catch (error) {
-      alert(error.message || 'Failed to verify worker')
+      showError(error.message || 'Failed to verify worker. Please try again.')
       console.error('Error verifying worker:', error)
     } finally {
       setSubmitting(false)

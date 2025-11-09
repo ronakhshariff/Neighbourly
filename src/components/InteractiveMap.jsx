@@ -280,11 +280,18 @@ function InteractiveMap({
         }
       })
 
-      map.current.on('click', 'requests-unclustered', (e) => {
+      // Hover tooltip for requests
+      let hoverPopup = null
+      map.current.on('mouseenter', 'requests-unclustered', (e) => {
         const feature = e.features[0]
         const coordinates = feature.geometry.coordinates.slice()
         
-        const popup = new mapboxgl.Popup({ offset: 25, className: 'custom-popup' })
+        hoverPopup = new mapboxgl.Popup({ 
+          offset: 25, 
+          className: 'custom-popup hover-popup',
+          closeButton: false,
+          closeOnClick: false
+        })
           .setLngLat(coordinates)
           .setHTML(`
             <div class="map-popup-content">
@@ -293,13 +300,111 @@ function InteractiveMap({
                 <span class="map-popup-priority ${feature.properties.priority?.toLowerCase()}">${feature.properties.priority || 'Medium'}</span>
                 <span class="map-popup-category">${feature.properties.category || 'General'}</span>
               </div>
-              <p class="map-popup-status">Status: ${feature.properties.status || 'Open'}</p>
+              <p class="map-popup-preview">${feature.properties.description ? feature.properties.description.substring(0, 80) + '...' : 'Click for details'}</p>
+            </div>
+          `)
+          .addTo(map.current)
+      })
+
+      map.current.on('mouseleave', 'requests-unclustered', () => {
+        if (hoverPopup) {
+          hoverPopup.remove()
+          hoverPopup = null
+        }
+      })
+
+      map.current.on('click', 'requests-unclustered', (e) => {
+        const feature = e.features[0]
+        const coordinates = feature.geometry.coordinates.slice()
+        
+        // Remove hover popup if exists
+        if (hoverPopup) {
+          hoverPopup.remove()
+          hoverPopup = null
+        }
+        
+        const popup = new mapboxgl.Popup({ offset: 25, className: 'custom-popup click-popup' })
+          .setLngLat(coordinates)
+          .setHTML(`
+            <div class="map-popup-content">
+              <div class="map-popup-header">
+                <h3 class="map-popup-title">${feature.properties.title || 'Help Request'}</h3>
+                <div class="map-popup-details">
+                  <span class="map-popup-priority ${feature.properties.priority?.toLowerCase()}">${feature.properties.priority || 'Medium'}</span>
+                  <span class="map-popup-category">${feature.properties.category || 'General'}</span>
+                </div>
+              </div>
+              ${feature.properties.description ? `<p class="map-popup-description">${feature.properties.description}</p>` : ''}
+              <div class="map-popup-info">
+                ${feature.properties.address ? `<div class="map-popup-info-item">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+                    <circle cx="12" cy="10" r="3"/>
+                  </svg>
+                  <span>${feature.properties.address}</span>
+                </div>` : ''}
+                ${feature.properties.distance ? `<div class="map-popup-info-item">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M5 12h14M12 5l7 7-7 7"/>
+                  </svg>
+                  <span>${feature.properties.distance} away</span>
+                </div>` : ''}
+                <div class="map-popup-info-item">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <circle cx="12" cy="12" r="10"/>
+                    <polyline points="12 6 12 12 16 14"/>
+                  </svg>
+                  <span>Status: ${feature.properties.status || 'Open'}</span>
+                </div>
+              </div>
+              ${onRequestClick ? `<button class="map-popup-action-btn" onclick="window.mapRequestClick && window.mapRequestClick('${feature.properties.requestId}')">
+                View Full Details
+              </button>` : ''}
             </div>
           `)
           .addTo(map.current)
 
+        // Store click handler globally for popup button
         if (onRequestClick && feature.properties.requestId) {
-          onRequestClick(feature.properties.requestId)
+          window.mapRequestClick = (id) => {
+            onRequestClick(id)
+            popup.remove()
+          }
+        }
+      })
+
+      // Hover tooltip for businesses
+      let businessHoverPopup = null
+      map.current.on('mouseenter', 'businesses-points', (e) => {
+        const feature = e.features[0]
+        const coordinates = feature.geometry.coordinates.slice()
+        
+        businessHoverPopup = new mapboxgl.Popup({ 
+          offset: 25, 
+          className: 'custom-popup hover-popup',
+          closeButton: false,
+          closeOnClick: false
+        })
+          .setLngLat(coordinates)
+          .setHTML(`
+            <div class="map-popup-content">
+              <h3 class="map-popup-title">${feature.properties.name || 'Business'}</h3>
+              <p class="map-popup-type">${feature.properties.type || 'Accessible Business'}</p>
+              ${feature.properties.accessibilityRating ? `
+                <div class="map-popup-rating">
+                  <span>⭐ ${feature.properties.accessibilityRating}</span>
+                  <span class="map-popup-reviews">(${feature.properties.accessibilityReviews || 0} reviews)</span>
+                </div>
+              ` : ''}
+            </div>
+          `)
+          .addTo(map.current)
+      })
+
+      map.current.on('mouseleave', 'businesses-points', () => {
+        if (businessHoverPopup) {
+          businessHoverPopup.remove()
+          businessHoverPopup = null
         }
       })
 
@@ -307,37 +412,147 @@ function InteractiveMap({
         const feature = e.features[0]
         const coordinates = feature.geometry.coordinates.slice()
         
-        const popup = new mapboxgl.Popup({ offset: 25, className: 'custom-popup' })
+        // Remove hover popup if exists
+        if (businessHoverPopup) {
+          businessHoverPopup.remove()
+          businessHoverPopup = null
+        }
+        
+        const popup = new mapboxgl.Popup({ offset: 25, className: 'custom-popup click-popup' })
           .setLngLat(coordinates)
           .setHTML(`
             <div class="map-popup-content">
-              <h3 class="map-popup-title">${feature.properties.name || 'Business'}</h3>
-              <p class="map-popup-type">${feature.properties.type || 'Accessible Business'}</p>
-              <div class="map-popup-features">
-                ${(feature.properties.accessibilityFeatures || []).map(f => 
-                  `<span class="map-popup-feature">${f}</span>`
-                ).join('')}
+              <div class="map-popup-header">
+                <h3 class="map-popup-title">${feature.properties.name || 'Business'}</h3>
+                <p class="map-popup-type">${feature.properties.type || 'Accessible Business'}</p>
               </div>
+              ${feature.properties.description ? `<p class="map-popup-description">${feature.properties.description}</p>` : ''}
+              ${feature.properties.accessibilityRating ? `
+                <div class="map-popup-rating">
+                  <span>⭐ ${feature.properties.accessibilityRating}</span>
+                  <span class="map-popup-reviews">(${feature.properties.accessibilityReviews || 0} reviews)</span>
+                </div>
+              ` : ''}
+              <div class="map-popup-info">
+                ${feature.properties.address ? `<div class="map-popup-info-item">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+                    <circle cx="12" cy="10" r="3"/>
+                  </svg>
+                  <span>${feature.properties.address}</span>
+                </div>` : ''}
+                ${feature.properties.phone ? `<div class="map-popup-info-item">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
+                  </svg>
+                  <span>${feature.properties.phone}</span>
+                </div>` : ''}
+                ${feature.properties.hours ? `<div class="map-popup-info-item">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <circle cx="12" cy="12" r="10"/>
+                    <polyline points="12 6 12 12 16 14"/>
+                  </svg>
+                  <span>${feature.properties.hours}</span>
+                </div>` : ''}
+                ${feature.properties.sensoryFriendlyHours ? `<div class="map-popup-info-item special">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+                  </svg>
+                  <span>Sensory-friendly: ${feature.properties.sensoryFriendlyHours}</span>
+                </div>` : ''}
+              </div>
+              ${(feature.properties.accessibilityFeatures || []).length > 0 ? `
+                <div class="map-popup-section">
+                  <h4 class="map-popup-section-title">Accessibility Features</h4>
+                  <div class="map-popup-features">
+                    ${feature.properties.accessibilityFeatures.slice(0, 6).map(f => 
+                      `<span class="map-popup-feature">${f}</span>`
+                    ).join('')}
+                    ${feature.properties.accessibilityFeatures.length > 6 ? `<span class="map-popup-feature-more">+${feature.properties.accessibilityFeatures.length - 6} more</span>` : ''}
+                  </div>
+                </div>
+              ` : ''}
+              ${feature.properties.website ? `<a href="${feature.properties.website}" target="_blank" class="map-popup-action-btn" rel="noopener noreferrer">
+                Visit Website
+              </a>` : ''}
             </div>
           `)
           .addTo(map.current)
+      })
+
+      // Hover tooltip for accessibility services
+      let accessibilityHoverPopup = null
+      map.current.on('mouseenter', 'accessibility-points', (e) => {
+        const feature = e.features[0]
+        const coordinates = feature.geometry.coordinates.slice()
+        
+        accessibilityHoverPopup = new mapboxgl.Popup({ 
+          offset: 25, 
+          className: 'custom-popup hover-popup',
+          closeButton: false,
+          closeOnClick: false
+        })
+          .setLngLat(coordinates)
+          .setHTML(`
+            <div class="map-popup-content">
+              <h3 class="map-popup-title">${feature.properties.name || 'Accessibility Service'}</h3>
+              <p class="map-popup-type">${feature.properties.type || 'Service'}</p>
+            </div>
+          `)
+          .addTo(map.current)
+      })
+
+      map.current.on('mouseleave', 'accessibility-points', () => {
+        if (accessibilityHoverPopup) {
+          accessibilityHoverPopup.remove()
+          accessibilityHoverPopup = null
+        }
       })
 
       map.current.on('click', 'accessibility-points', (e) => {
         const feature = e.features[0]
         const coordinates = feature.geometry.coordinates.slice()
         
-        const popup = new mapboxgl.Popup({ offset: 25, className: 'custom-popup' })
+        // Remove hover popup if exists
+        if (accessibilityHoverPopup) {
+          accessibilityHoverPopup.remove()
+          accessibilityHoverPopup = null
+        }
+        
+        const popup = new mapboxgl.Popup({ offset: 25, className: 'custom-popup click-popup' })
           .setLngLat(coordinates)
           .setHTML(`
             <div class="map-popup-content">
-              <h3 class="map-popup-title">${feature.properties.name || 'Accessibility Service'}</h3>
-              <p class="map-popup-type">${feature.properties.type || 'Service'}</p>
-              <div class="map-popup-features">
-                ${(feature.properties.services || []).map(s => 
-                  `<span class="map-popup-feature">${s}</span>`
-                ).join('')}
+              <div class="map-popup-header">
+                <h3 class="map-popup-title">${feature.properties.name || 'Accessibility Service'}</h3>
+                <p class="map-popup-type">${feature.properties.type || 'Service'}</p>
               </div>
+              ${feature.properties.description ? `<p class="map-popup-description">${feature.properties.description}</p>` : ''}
+              <div class="map-popup-info">
+                ${feature.properties.address ? `<div class="map-popup-info-item">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+                    <circle cx="12" cy="10" r="3"/>
+                  </svg>
+                  <span>${feature.properties.address}</span>
+                </div>` : ''}
+                ${feature.properties.phone ? `<div class="map-popup-info-item">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
+                  </svg>
+                  <span>${feature.properties.phone}</span>
+                </div>` : ''}
+              </div>
+              ${(feature.properties.services || []).length > 0 ? `
+                <div class="map-popup-section">
+                  <h4 class="map-popup-section-title">Services Offered</h4>
+                  <div class="map-popup-features">
+                    ${feature.properties.services.map(s => 
+                      `<span class="map-popup-feature">${s}</span>`
+                    ).join('')}
+                  </div>
+                </div>
+              ` : ''}
             </div>
           `)
           .addTo(map.current)
@@ -529,28 +744,47 @@ function InteractiveMap({
     const requestFeatures = requests
       .filter(req => {
         if (selectedLayer === 'all' || selectedLayer === 'requests') {
-          return req.coordinates || (req.latitude && req.longitude)
+          const hasCoords = req.coordinates || (req.latitude && req.longitude)
+          if (!hasCoords) {
+            console.warn('Request missing coordinates:', req.id, req.title)
+          }
+          return hasCoords
         }
         return false
       })
-      .map(req => ({
-        type: 'Feature',
-        geometry: {
-          type: 'Point',
-          coordinates: req.coordinates 
-            ? [req.coordinates.lng, req.coordinates.lat]
-            : [req.longitude, req.latitude]
-        },
-        properties: {
-          requestId: req.id,
-          title: req.title,
-          priority: req.priority || req.urgency || 'Medium',
-          category: req.category,
-          status: req.status,
-          timestamp: Date.now()
+      .map(req => {
+        const coords = req.coordinates 
+          ? [req.coordinates.lng, req.coordinates.lat]
+          : [req.longitude, req.latitude]
+        
+        // Validate coordinates
+        if (!coords[0] || !coords[1] || isNaN(coords[0]) || isNaN(coords[1])) {
+          console.error('Invalid coordinates for request:', req.id, coords)
+          return null
         }
-      }))
+        
+        return {
+          type: 'Feature',
+          geometry: {
+            type: 'Point',
+            coordinates: coords
+          },
+          properties: {
+            requestId: req.id,
+            title: req.title,
+            description: req.description,
+            priority: req.priority || req.urgency || 'Medium',
+            category: req.category,
+            status: req.status,
+            address: req.address || req.location?.address,
+            distance: req.distance,
+            timestamp: Date.now()
+          }
+        }
+      })
+      .filter(f => f !== null) // Remove invalid features
 
+    console.log('Updating requests markers:', requestFeatures.length)
     map.current.getSource('requests').setData({
       type: 'FeatureCollection',
       features: requestFeatures
@@ -560,26 +794,50 @@ function InteractiveMap({
     const businessFeatures = accessibleBusinesses
       .filter(biz => {
         if (selectedLayer === 'all' || selectedLayer === 'businesses') {
-          return biz.coordinates || (biz.latitude && biz.longitude)
+          const hasCoords = biz.coordinates || (biz.latitude && biz.longitude)
+          if (!hasCoords) {
+            console.warn('Business missing coordinates:', biz.id, biz.name)
+          }
+          return hasCoords
         }
         return false
       })
-      .map(biz => ({
-        type: 'Feature',
-        geometry: {
-          type: 'Point',
-          coordinates: biz.coordinates 
-            ? [biz.coordinates.lng, biz.coordinates.lat]
-            : [biz.longitude, biz.latitude]
-        },
-        properties: {
-          businessId: biz.id,
-          name: biz.name,
-          type: biz.type,
-          accessibilityFeatures: biz.accessibilityFeatures || []
+      .map(biz => {
+        const coords = biz.coordinates 
+          ? [biz.coordinates.lng, biz.coordinates.lat]
+          : [biz.longitude, biz.latitude]
+        
+        // Validate coordinates
+        if (!coords[0] || !coords[1] || isNaN(coords[0]) || isNaN(coords[1])) {
+          console.error('Invalid coordinates for business:', biz.id, biz.name, coords)
+          return null
         }
-      }))
+        
+        return {
+          type: 'Feature',
+          geometry: {
+            type: 'Point',
+            coordinates: coords
+          },
+          properties: {
+            businessId: biz.id,
+            name: biz.name,
+            type: biz.type,
+            description: biz.description,
+            address: biz.address,
+            phone: biz.phone,
+            website: biz.website,
+            hours: biz.hours,
+            sensoryFriendlyHours: biz.sensoryFriendlyHours,
+            accessibilityFeatures: biz.accessibilityFeatures || [],
+            accessibilityRating: biz.accessibilityRating,
+            accessibilityReviews: biz.accessibilityReviews
+          }
+        }
+      })
+      .filter(f => f !== null) // Remove invalid features
 
+    console.log('Updating business markers:', businessFeatures.length, businessFeatures.map(b => b.properties.name))
     map.current.getSource('businesses').setData({
       type: 'FeatureCollection',
       features: businessFeatures
@@ -589,26 +847,45 @@ function InteractiveMap({
     const accessibilityFeatures = specialNeedsLocations
       .filter(loc => {
         if (selectedLayer === 'all' || selectedLayer === 'accessibility') {
-          return loc.coordinates || (loc.latitude && loc.longitude)
+          const hasCoords = loc.coordinates || (loc.latitude && loc.longitude)
+          if (!hasCoords) {
+            console.warn('Location missing coordinates:', loc.id, loc.name)
+          }
+          return hasCoords
         }
         return false
       })
-      .map(loc => ({
-        type: 'Feature',
-        geometry: {
-          type: 'Point',
-          coordinates: loc.coordinates 
-            ? [loc.coordinates.lng, loc.coordinates.lat]
-            : [loc.longitude, loc.latitude]
-        },
-        properties: {
-          locationId: loc.id,
-          name: loc.name,
-          type: loc.type,
-          services: loc.services || []
+      .map(loc => {
+        const coords = loc.coordinates 
+          ? [loc.coordinates.lng, loc.coordinates.lat]
+          : [loc.longitude, loc.latitude]
+        
+        // Validate coordinates
+        if (!coords[0] || !coords[1] || isNaN(coords[0]) || isNaN(coords[1])) {
+          console.error('Invalid coordinates for location:', loc.id, loc.name, coords)
+          return null
         }
-      }))
+        
+        return {
+          type: 'Feature',
+          geometry: {
+            type: 'Point',
+            coordinates: coords
+          },
+          properties: {
+            locationId: loc.id,
+            name: loc.name,
+            type: loc.type,
+            description: loc.description,
+            address: loc.address,
+            phone: loc.phone,
+            services: loc.services || []
+          }
+        }
+      })
+      .filter(f => f !== null) // Remove invalid features
 
+    console.log('Updating accessibility markers:', accessibilityFeatures.length)
     map.current.getSource('accessibility').setData({
       type: 'FeatureCollection',
       features: accessibilityFeatures
