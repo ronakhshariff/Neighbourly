@@ -346,6 +346,62 @@ export const cityAPI = {
     }
     return apiCall('/city/heatmap')
   },
+
+  // City Authority Verification
+  checkCityAuthorityStatus: async () => {
+    if (USE_MOCK_BACKEND) {
+      // Check localStorage for verification status
+      const status = localStorage.getItem('cityAuthorityVerified')
+      return {
+        verified: status === 'true',
+        status: status === 'true' ? 'approved' : status || 'pending',
+        message: status === 'true' ? 'You are verified as a city authority' : 'Verification pending'
+      }
+    }
+    try {
+      return await realApi.getCityAuthorityStatus()
+    } catch (error) {
+      return { verified: false, status: 'pending', message: 'Verification required' }
+    }
+  },
+
+  requestCityAuthorityVerification: async (formData) => {
+    if (USE_MOCK_BACKEND) {
+      // Store in localStorage for demo
+      const formDataObj = {}
+      for (let [key, value] of formData.entries()) {
+        formDataObj[key] = value
+      }
+      localStorage.setItem('cityAuthorityVerificationRequest', JSON.stringify({
+        ...formDataObj,
+        submittedAt: new Date().toISOString(),
+        status: 'pending'
+      }))
+      // For demo, auto-approve after 2 seconds
+      setTimeout(() => {
+        localStorage.setItem('cityAuthorityVerified', 'true')
+      }, 2000)
+      return { success: true, message: 'Verification request submitted' }
+    }
+    try {
+      // For real API, send FormData
+      const token = getToken()
+      const response = await fetch(`${API_BASE}/city/authority/verify`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: formData
+      })
+      const data = await response.json()
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to submit verification')
+      }
+      return data
+    } catch (error) {
+      throw error
+    }
+  },
 }
 
 // Roadmap APIs

@@ -140,6 +140,11 @@ export const api = {
   // convert lat/lng to address
   reverseGeocode: (latitude, longitude) => {
     return apiCall(`/location/reverse-geocode?latitude=${latitude}&longitude=${longitude}`);
+  },
+
+  // check city authority verification status
+  getCityAuthorityStatus: () => {
+    return apiCall('/city/authority/status');
   }
 };
 

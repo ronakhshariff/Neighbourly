@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useApp } from '../context/AppContext'
-import { requestsAPI } from '../services/api'
+import { requestsAPI, roadmapAPI } from '../services/api'
+import InteractiveMap from './InteractiveMap'
 import './HelpRequests.css'
 
 function HelpRequests() {
@@ -13,9 +14,12 @@ function HelpRequests() {
   const [selectedRequest, setSelectedRequest] = useState(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [requests, setRequests] = useState([])
+  const [accessibleBusinesses, setAccessibleBusinesses] = useState([])
+  const [specialNeedsLocations, setSpecialNeedsLocations] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [submitting, setSubmitting] = useState(false)
+  const [userLocation, setUserLocation] = useState(null)
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -30,13 +34,36 @@ function HelpRequests() {
   const priorities = ['all', 'Urgent', 'High', 'Medium', 'Low']
   const statuses = ['all', 'Active', 'Assigned', 'Completed']
 
+  // Get user location
+  useEffect(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setUserLocation({
+            lat: position.coords.latitude,
+            lng: position.coords.longitude
+          })
+        },
+        (error) => {
+          console.log('Geolocation error:', error)
+          // Use default location (Calgary)
+          setUserLocation({ lat: 51.0447, lng: -114.0719 })
+        }
+      )
+    } else {
+      setUserLocation({ lat: 51.0447, lng: -114.0719 })
+    }
+  }, [])
+
   // Load requests on component mount and when filters change
   useEffect(() => {
     loadRequests()
+    loadAccessibleData()
     
     // Real-time polling - update every 10 seconds
     const interval = setInterval(() => {
       loadRequests()
+      loadAccessibleData()
     }, 10000)
     
     return () => clearInterval(interval)
@@ -75,6 +102,67 @@ function HelpRequests() {
       console.error('Error loading requests:', err)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const loadAccessibleData = async () => {
+    try {
+      // Load accessible businesses
+      try {
+        const businessesResponse = await roadmapAPI.getBusinesses({ 
+          accessible: true,
+          specialNeeds: true 
+        })
+        const businesses = businessesResponse.businesses || businessesResponse || []
+        setAccessibleBusinesses(businesses)
+      } catch (err) {
+        console.log('Error loading businesses, using mock data:', err)
+        // Use mock data for now
+        setAccessibleBusinesses([
+          {
+            id: 'biz1',
+            name: 'Accessible Coffee Shop',
+            type: 'Restaurant',
+            coordinates: { lat: 51.0447, lng: -114.0719 },
+            accessibilityFeatures: ['Wheelchair Access', 'ASL Staff', 'Sensory Friendly']
+          },
+          {
+            id: 'biz2',
+            name: 'Inclusive Grocery Store',
+            type: 'Retail',
+            coordinates: { lat: 51.0450, lng: -114.0720 },
+            accessibilityFeatures: ['Wheelchair Access', 'Low Sensory Hours']
+          }
+        ])
+      }
+
+      // Load special needs support locations
+      try {
+        const supportResponse = await roadmapAPI.getSupportServices()
+        const services = supportResponse.services || supportResponse || []
+        setSpecialNeedsLocations(services)
+      } catch (err) {
+        console.log('Error loading support services, using mock data:', err)
+        // Use mock data for now
+        setSpecialNeedsLocations([
+          {
+            id: 'loc1',
+            name: 'Community Support Center',
+            type: 'Support Service',
+            coordinates: { lat: 51.0445, lng: -114.0715 },
+            services: ['Counseling', 'Resource Navigation', 'Peer Support']
+          },
+          {
+            id: 'loc2',
+            name: 'Accessibility Resource Hub',
+            type: 'Resource Center',
+            coordinates: { lat: 51.0452, lng: -114.0722 },
+            services: ['Equipment Loan', 'Information', 'Advocacy']
+          }
+        ])
+      }
+    } catch (err) {
+      console.error('Error loading accessible data:', err)
     }
   }
 
@@ -465,33 +553,15 @@ function HelpRequests() {
       ) : (
         <div className="help-requests-map-view">
           <div className="help-requests-map-container">
-            <div className="help-requests-map-placeholder">
-              <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
-                <circle cx="12" cy="10" r="3"/>
-              </svg>
-              <h3>Interactive Map View</h3>
-              <p>See all help requests plotted on a map with real-time updates</p>
-              <div className="help-requests-map-legend">
-                <div className="map-legend-item">
-                  <div className="map-legend-dot urgent"></div>
-                  <span>Urgent</span>
-                </div>
-                <div className="map-legend-item">
-                  <div className="map-legend-dot high"></div>
-                  <span>High Priority</span>
-                </div>
-                <div className="map-legend-item">
-                  <div className="map-legend-dot medium"></div>
-                  <span>Medium Priority</span>
-                </div>
-                <div className="map-legend-item">
-                  <div className="map-legend-dot low"></div>
-                  <span>Low Priority</span>
-                </div>
-              </div>
-              <button className="help-requests-map-btn">Enable Map View</button>
-            </div>
+            <InteractiveMap
+              requests={filteredRequests}
+              accessibleBusinesses={accessibleBusinesses}
+              specialNeedsLocations={specialNeedsLocations}
+              onRequestClick={handleViewDetails}
+              userLocation={userLocation}
+              center={userLocation ? [userLocation.lng, userLocation.lat] : [-114.0719, 51.0447]}
+              zoom={userLocation ? 13 : 12}
+            />
           </div>
           <div className="help-requests-map-sidebar">
             <h3 className="help-requests-map-sidebar-title">Nearby Requests</h3>

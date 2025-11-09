@@ -1,11 +1,16 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useApp } from '../context/AppContext'
 import { cityAPI } from '../services/api'
+import CityAuthorityVerification from './CityAuthorityVerification'
 import './CityDashboard.css'
 
 function CityDashboard() {
+  const { user } = useApp()
   const navigate = useNavigate()
   const [selectedTimeframe, setSelectedTimeframe] = useState('7d')
+  const [isVerified, setIsVerified] = useState(false)
+  const [checkingVerification, setCheckingVerification] = useState(true)
   const [stats, setStats] = useState({
     totalRequests: 0,
     activeRequests: 0,
@@ -20,15 +25,38 @@ function CityDashboard() {
   const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
-    loadDashboardData()
-    
-    // Real-time polling - update every 10 seconds
-    const interval = setInterval(() => {
+    checkVerificationStatus()
+  }, [user])
+
+  useEffect(() => {
+    if (isVerified) {
       loadDashboardData()
-    }, 10000)
-    
-    return () => clearInterval(interval)
-  }, [selectedTimeframe])
+      
+      // Real-time polling - update every 10 seconds
+      const interval = setInterval(() => {
+        loadDashboardData()
+      }, 10000)
+      
+      return () => clearInterval(interval)
+    }
+  }, [selectedTimeframe, isVerified])
+
+  const checkVerificationStatus = async () => {
+    try {
+      setCheckingVerification(true)
+      const status = await cityAPI.checkCityAuthorityStatus()
+      setIsVerified(status.verified || status.status === 'approved')
+    } catch (error) {
+      console.error('Error checking verification status:', error)
+      setIsVerified(false)
+    } finally {
+      setCheckingVerification(false)
+    }
+  }
+
+  const handleVerified = () => {
+    setIsVerified(true)
+  }
 
   const loadDashboardData = async () => {
     try {
@@ -70,6 +98,21 @@ function CityDashboard() {
   const handleViewFullMap = () => {
     navigate('/dashboard/city/requests')
     // Could set view mode to map here
+  }
+
+  // Show verification modal if not verified
+  if (checkingVerification) {
+    return (
+      <div className="city-dashboard">
+        <div style={{ padding: '60px 20px', textAlign: 'center' }}>
+          <div style={{ fontSize: '16px', color: 'rgba(0,0,0,0.6)' }}>Checking verification status...</div>
+        </div>
+      </div>
+    )
+  }
+
+  if (!isVerified) {
+    return <CityAuthorityVerification onVerified={handleVerified} />
   }
 
   return (
