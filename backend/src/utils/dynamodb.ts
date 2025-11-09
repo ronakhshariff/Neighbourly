@@ -6,7 +6,7 @@ export const docClient = DynamoDBDocumentClient.from(client);
 
 export const TABLE_NAME = process.env.TABLE_NAME || 'neighbourly-dev';
 
-// using single table design - everything in one table, partitioned by city#region
+// single table design, partitioned by city#region
 export interface RequestItem {
   PK: string; // like "toronto#ontario"
   SK: string; // request id or user id
@@ -22,15 +22,15 @@ export interface RequestItem {
     latitude: number;
     longitude: number;
     address?: string;
-    areaName?: string; // human-readable area name from location service (e.g. "Downtown, Toronto")
+    areaName?: string; // from location service
   };
   images?: string[]; // links to images in s3
   acceptedBy?: string; // who's helping
   createdAt: string;
   updatedAt: string;
   urgency: 'low' | 'medium' | 'high' | 'emergency';
-  aiLabels?: string[]; // what the image recognition found
-  translatedDescription?: { [language: string]: string }; // saved translations so we don't have to do it again
+  aiLabels?: string[];
+  translatedDescription?: { [language: string]: string };
 }
 
 export interface UserItem {

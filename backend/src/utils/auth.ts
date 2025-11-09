@@ -6,8 +6,7 @@ const cognitoClient = new CognitoIdentityProviderClient({
 
 export async function getUserFromToken(token: string): Promise<{ userId: string; email: string } | null> {
   try {
-    // cognito handles the token stuff for us, just grab the user info
-    // TODO: this might not work the way i think, need to test
+    // TODO: might not work, need to test
     const command = new AdminGetUserCommand({
       UserPoolId: process.env.USER_POOL_ID || '',
       Username: token
@@ -26,15 +25,13 @@ export async function getUserFromToken(token: string): Promise<{ userId: string;
 }
 
 export function extractUserIdFromEvent(event: any): string {
-  // get the user id from the auth token that cognito already verified
-  // hack: try sub first, then username, then just return unknown
+  // hack: try sub first, then username, fallback to unknown
   return event.requestContext?.authorizer?.claims?.sub || 
          event.requestContext?.authorizer?.claims?.username || 
          'unknown';
 }
 
 export function extractUserEmailFromEvent(event: any): string {
-  // sometimes email might not be there
   return event.requestContext?.authorizer?.claims?.email || '';
 }
 

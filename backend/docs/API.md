@@ -1,14 +1,10 @@
-# Neighbourly API Reference
+# API Reference
 
-Quick reference for frontend integration. All endpoints require Cognito auth unless noted.
+Base URL: `https://your-api-id.execute-api.us-east-1.amazonaws.com/dev` or `http://localhost:3000/dev` for local
 
-Base URL: `https://your-api-id.execute-api.us-east-1.amazonaws.com/dev` (or `http://localhost:3000/dev` for local)
-
-## Authentication
-
-All endpoints (except health check) require a Cognito JWT token in the Authorization header:
+All endpoints need Cognito auth except health check. Send token in header:
 ```
-Authorization: Bearer YOUR_COGNITO_TOKEN
+Authorization: Bearer YOUR_TOKEN
 ```
 
 ## Endpoints

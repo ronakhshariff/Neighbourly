@@ -1,6 +1,7 @@
 node_modules/
 dist/
 .serverless/
+.build/
 .env
 .env.local
 *.log
