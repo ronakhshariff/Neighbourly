@@ -361,6 +361,8 @@
   letter-spacing: 0.3px;
   font-family: 'Inter', sans-serif;
   white-space: nowrap;
+  text-decoration: none;
+  display: inline-block;
 }
 
 .login-button:hover {
@@ -389,6 +391,8 @@
   box-shadow: 0 2px 8px rgba(168, 85, 247, 0.25);
   position: relative;
   overflow: hidden;
+  text-decoration: none;
+  display: inline-block;
 }
 
 .join-button::before {
