@@ -6,14 +6,14 @@ import UserDashboard from './components/UserDashboard'
 import Roadmap from './components/Roadmap'
 import Volunteer from './components/Volunteer'
 import HelpRequests from './components/HelpRequests'
-import LandingPageContent from './components/LandingPageContent'
+import HomePage from './components/HomePage'
 import './App.css'
 
 function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<LandingPageContent />} />
+        <Route path="/" element={<HomePage />} />
         <Route path="/dashboard" element={<DashboardLayout />}>
           <Route path="city" element={<CityDashboard />} />
           <Route path="user" element={<UserDashboard />} />
